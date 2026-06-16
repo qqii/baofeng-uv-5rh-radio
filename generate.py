@@ -880,7 +880,7 @@ LISTEN_BLOCKS: Final = (
             ListenRangeSpec(
                 prefix="MIL",
                 start_hz=250_000_000,
-                count=41,
+                count=40,
                 step_hz=250_000,
                 modulation=Modulation.FM,
                 step=StepHundredthsKHz.HAM_25_00,
