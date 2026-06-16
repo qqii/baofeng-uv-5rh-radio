@@ -652,7 +652,7 @@ DTCS_TONES: Final = (
     Tone.dcs(DcsCode.D073),
     Tone.dcs(DcsCode.D134),
 )
-DASHBOARD_TONES: Final = (*TSQL_TONES, *DTCS_TONES)
+DASHBOARD_TONES: Final = (*TSQL_TONES, *DTCS_TONES, OPEN_TONE)
 
 PMR_CHANNELS: Final = tuple(pmr_channel(frequency) for frequency in PmrFrequency)
 PMR_DEFAULTS: Final = MatrixDefaults(
@@ -1047,56 +1047,68 @@ def add_record(
 def add_dashboard_quick_access(records: list[ChannelRecord]) -> None:
     """Add the special first ten high-utility memories."""
     quick_specs = (
-        (DASHBOARD_SPECIAL_BASE, DASHBOARD_PMR_CHANNELS[0], OPEN_TONE, PMR_DEFAULTS, Power.LOW),
+        (DASHBOARD_SPECIAL_BASE, DASHBOARD_PMR_CHANNELS[0], TSQL_TONES[0], PMR_DEFAULTS, Power.LOW),
         (
             DASHBOARD_SPECIAL_BASE + 1,
             DASHBOARD_PMR_CHANNELS[0],
-            TSQL_TONES[0],
+            DTCS_TONES[0],
             PMR_DEFAULTS,
             Power.LOW,
         ),
         (
             DASHBOARD_SPECIAL_BASE + 2,
-            DASHBOARD_PMR_CHANNELS[0],
-            DTCS_TONES[0],
+            DASHBOARD_PMR_CHANNELS[1],
+            TSQL_TONES[0],
             PMR_DEFAULTS,
             Power.LOW,
         ),
         (
             DASHBOARD_SPECIAL_BASE + 3,
+            DASHBOARD_PMR_CHANNELS[2],
+            TSQL_TONES[0],
+            PMR_DEFAULTS,
+            Power.LOW,
+        ),
+        (
+            DASHBOARD_SPECIAL_BASE + 4,
+            DASHBOARD_UHF_CHANNELS[0],
+            TSQL_TONES[0],
+            HAM_DEFAULTS,
+            Power.LOW,
+        ),
+        (
+            DASHBOARD_SPECIAL_BASE + 5,
+            DASHBOARD_VHF_CHANNELS[0],
+            TSQL_TONES[0],
+            HAM_DEFAULTS,
+            Power.LOW,
+        ),
+        (
+            DASHBOARD_SPECIAL_BASE + 6,
+            DASHBOARD_PMR_CHANNELS[0],
+            OPEN_TONE,
+            PMR_DEFAULTS,
+            Power.LOW,
+        ),
+        (
+            DASHBOARD_SPECIAL_BASE + 7,
             DASHBOARD_PMR_CHANNELS[0],
             OPEN_TONE,
             PMR_DEFAULTS,
             Power.HIGH,
         ),
         (
-            DASHBOARD_SPECIAL_BASE + 4,
+            DASHBOARD_SPECIAL_BASE + 8,
             DASHBOARD_PMR_CHANNELS[0],
             TSQL_TONES[0],
             PMR_DEFAULTS,
             Power.HIGH,
         ),
         (
-            DASHBOARD_SPECIAL_BASE + 5,
+            DASHBOARD_SPECIAL_BASE + 9,
             DASHBOARD_PMR_CHANNELS[0],
             DTCS_TONES[0],
             PMR_DEFAULTS,
-            Power.HIGH,
-        ),
-        (DASHBOARD_SPECIAL_BASE + 6, DASHBOARD_PMR_CHANNELS[1], OPEN_TONE, PMR_DEFAULTS, Power.LOW),
-        (DASHBOARD_SPECIAL_BASE + 7, DASHBOARD_PMR_CHANNELS[2], OPEN_TONE, PMR_DEFAULTS, Power.LOW),
-        (
-            DASHBOARD_SPECIAL_BASE + 8,
-            DASHBOARD_UHF_CHANNELS[0],
-            OPEN_TONE,
-            HAM_DEFAULTS,
-            Power.HIGH,
-        ),
-        (
-            DASHBOARD_SPECIAL_BASE + 9,
-            DASHBOARD_VHF_CHANNELS[0],
-            OPEN_TONE,
-            HAM_DEFAULTS,
             Power.HIGH,
         ),
     )
@@ -1250,14 +1262,14 @@ def dashboard_section_markers() -> tuple[SectionMarker, ...]:
     markers = [
         SectionMarker(
             DASHBOARD_SPECIAL_BASE,
-            "Quick primary PMR convoy controls",
+            "Quick defaults: toned convoy channels",
         ),
         SectionMarker(
             DASHBOARD_SPECIAL_BASE + 5,
-            "Quick backup open channels",
+            "Quick controls: open and high-power PMR",
         ),
     ]
-    tone_names = "/".join(tone.label for tone in DASHBOARD_TONES)
+    tone_names = "/".join(tone.label or "OPN" for tone in DASHBOARD_TONES)
     for channel_index, dashboard_channel in enumerate(DASHBOARD_CHANNELS):
         low_start = DASHBOARD_MATRIX_BASE + channel_index * DASHBOARD_BLOCK_STRIDE
         high_start = low_start + DASHBOARD_POWER_OFFSET
