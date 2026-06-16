@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Final, NamedTuple, TypedDict
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-OUTPUT_PATH: Final = Path("Baofeng_UV5RH_Master.csv")
+OUTPUT_PATH: Final = Path("res/Baofeng_UV5RH_master.csv")
 DEFAULT_CTCSS_TENTHS_HZ: Final = 885
 DEFAULT_DCS_CODE: Final = 23
 MAX_DCS_CODE: Final = 999
@@ -1409,6 +1409,7 @@ def validate_records(records: Sequence[ChannelRecord]) -> None:
 
 def write_csv(records: Sequence[ChannelRecord], path: Path) -> None:
     """Write generated records to a CHIRP CSV file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="") as file:
         writer = csv.DictWriter(file, fieldnames=CSV_HEADER)
         writer.writeheader()
