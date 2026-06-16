@@ -407,8 +407,8 @@ class ListenBlock(NamedTuple):
 
     base_location: int
     channels: tuple[ListenChannel, ...]
-    comment: str
-    row_comment: str
+    section_comment: str = ""
+    row_comment: str = ""
 
 
 class ListenRangeSpec(NamedTuple):
@@ -838,8 +838,8 @@ LISTEN_BLOCKS: Final = (
                 width=3,
             )
         ),
-        "Listen only: upper civil airband",
-        "RX only; AM aviation service, stored as FM for this radio profile",
+        "Listen only: civil airband AM service stored as FM",
+        "",
     ),
     ListenBlock(
         LISTEN_MIL_AIR_LOW_BASE,
@@ -854,8 +854,8 @@ LISTEN_BLOCKS: Final = (
                 width=3,
             )
         ),
-        "Listen only: military air low",
-        "RX only; AM military air service, stored as FM for this radio profile",
+        "Listen only: military air AM service stored as FM",
+        "",
     ),
     ListenBlock(
         LISTEN_MIL_AIR_MID_BASE,
@@ -871,8 +871,8 @@ LISTEN_BLOCKS: Final = (
                 width=3,
             )
         ),
-        "Listen only: military air mid",
-        "RX only; AM military air service, stored as FM for this radio profile",
+        "Listen only: military air AM service stored as FM",
+        "",
     ),
     ListenBlock(
         LISTEN_MIL_AIR_HIGH_BASE,
@@ -888,8 +888,8 @@ LISTEN_BLOCKS: Final = (
                 width=3,
             )
         ),
-        "Listen only: military air high",
-        "RX only; AM military air service, stored as FM for this radio profile",
+        "Listen only: military air AM service stored as FM",
+        "",
     ),
     ListenBlock(
         LISTEN_MARINE_BASE,
@@ -903,8 +903,8 @@ LISTEN_BLOCKS: Final = (
                 step=StepHundredthsKHz.HAM_25_00,
             )
         ),
-        "Listen only: marine VHF ship-side",
-        "RX only; marine safety and working channels, do not transmit",
+        "Listen only: marine VHF safety and working channels",
+        "",
     ),
     ListenBlock(
         LISTEN_WEATHER_BASE,
@@ -916,8 +916,8 @@ LISTEN_BLOCKS: Final = (
                 step=StepHundredthsKHz.HAM_25_00,
             )
         ),
-        "Listen only: North America weather",
-        "RX only; weather broadcast and alert-style channels",
+        "Listen only: North America weather broadcasts",
+        "",
     ),
     ListenBlock(
         LISTEN_SPACE_BASE,
@@ -929,8 +929,8 @@ LISTEN_BLOCKS: Final = (
                 step=StepHundredthsKHz.HAM_25_00,
             )
         ),
-        "Listen only: space and satellite",
-        "RX only; satellite and ISS/APRS-style downlink candidates",
+        "Listen only: satellite and ISS/APRS downlink candidates",
+        "",
     ),
     ListenBlock(
         LISTEN_PMR_BASE,
@@ -943,8 +943,8 @@ LISTEN_BLOCKS: Final = (
             )
             for index, frequency in enumerate(PmrFrequency, 1)
         ),
-        "Listen only: UK/EU PMR446",
-        "RX only; licence-free PMR446 activity, useful for local monitoring",
+        "",
+        "",
     ),
     ListenBlock(
         LISTEN_LPD_BASE,
@@ -958,8 +958,8 @@ LISTEN_BLOCKS: Final = (
                 step=StepHundredthsKHz.NARROW_12_50,
             )
         ),
-        "Listen only: EU LPD433/SRD",
-        "RX only; short-range devices, sensors, low-power local chatter",
+        "Listen only: EU LPD433/SRD devices and sensors",
+        "",
     ),
     ListenBlock(
         LISTEN_US_PERSONAL_BASE,
@@ -971,8 +971,8 @@ LISTEN_BLOCKS: Final = (
                 step=StepHundredthsKHz.NARROW_12_50,
             )
         ),
-        "Listen only: USA FRS/GMRS",
-        "RX only; North American personal radio channels",
+        "",
+        "",
     ),
     ListenBlock(
         LISTEN_US_BUSINESS_BASE,
@@ -984,8 +984,8 @@ LISTEN_BLOCKS: Final = (
                 step=StepHundredthsKHz.NARROW_12_50,
             )
         ),
-        "Listen only: USA MURS/business",
-        "RX only; US VHF MURS plus common business itinerant channels",
+        "",
+        "",
     ),
     ListenBlock(
         LISTEN_AU_CB_BASE,
@@ -1000,8 +1000,8 @@ LISTEN_BLOCKS: Final = (
                 width=3,
             )
         ),
-        "Listen only: AU/NZ UHF CB",
-        "RX only; Australia/New Zealand UHF CB allocation",
+        "",
+        "",
     ),
     ListenBlock(
         LISTEN_JP_LOW_POWER_BASE,
@@ -1013,8 +1013,8 @@ LISTEN_BLOCKS: Final = (
                 step=StepHundredthsKHz.NARROW_12_50,
             )
         ),
-        "Listen only: Japan 422 MHz low power",
-        "RX only; Japan low-power 422 MHz handheld channels",
+        "",
+        "",
     ),
 )
 
@@ -1311,7 +1311,11 @@ def ham_tone_section_markers(
 
 def listen_section_markers() -> tuple[SectionMarker, ...]:
     """Build comments for receive-only listen blocks."""
-    return tuple(SectionMarker(block.base_location, block.comment) for block in LISTEN_BLOCKS)
+    return tuple(
+        SectionMarker(block.base_location, block.section_comment)
+        for block in LISTEN_BLOCKS
+        if block.section_comment
+    )
 
 
 SECTION_MARKERS: Final = (
