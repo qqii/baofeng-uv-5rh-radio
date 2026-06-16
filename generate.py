@@ -73,11 +73,6 @@ class Power(StrEnum):
     HIGH = "High"
 
     @property
-    def suffix(self) -> str:
-        """Return the one-letter name suffix used in memory names."""
-        return "L" if self is Power.LOW else "H"
-
-    @property
     def chirp_value(self) -> str:
         """Return the CHIRP CSV value for this power level."""
         return "2.0W" if self is Power.LOW else "10W"
@@ -727,8 +722,8 @@ OPEN_PMR_HIGH_BASE: Final = 421
 OPEN_UHF_BASE: Final = 441
 OPEN_VHF_BASE: Final = 451
 OPEN_HAM_BLOCKS: Final = (
-    OpenHamBlock(OPEN_UHF_BASE, HAM_UHF_CHANNELS, CALLING_70CM_FREQUENCY, "U280 CQ H"),
-    OpenHamBlock(OPEN_VHF_BASE, HAM_VHF_CHANNELS, CALLING_2M_FREQUENCY, "V40 CQ H"),
+    OpenHamBlock(OPEN_UHF_BASE, HAM_UHF_CHANNELS, CALLING_70CM_FREQUENCY, "U280 CQ"),
+    OpenHamBlock(OPEN_VHF_BASE, HAM_VHF_CHANNELS, CALLING_2M_FREQUENCY, "V40 CQ"),
 )
 
 # Listen-only section: 500+ memories are receive-only and export with Duplex=off.
@@ -1026,11 +1021,11 @@ def add_record(
 ) -> None:
     """Append one generated record from a channel spec."""
     tone_label = spec.tone.label or "OPN"
-    name = f"{spec.channel.label} {tone_label} {spec.power.suffix}"
+    name = f"{spec.channel.label} {tone_label}"
     if len(name) > MAX_CHIRP_NAME_LENGTH and spec.tone.mode is ToneMode.DTCS:
-        name = f"{spec.channel.label} {tone_label[1:]} {spec.power.suffix}"
+        name = f"{spec.channel.label} {tone_label[1:]}"
     if len(name) > MAX_CHIRP_NAME_LENGTH:
-        name = f"{spec.channel.label}{tone_label}{spec.power.suffix}"
+        name = f"{spec.channel.label}{tone_label}"
     records.append(
         ChannelRecord(
             location=location,
@@ -1223,7 +1218,7 @@ def add_open_ham_records(records: list[ChannelRecord]) -> None:
             name = (
                 block.calling_name
                 if channel.frequency == block.calling_frequency
-                else f"{channel.label} OPN H"
+                else f"{channel.label} OPN"
             )
             records.append(
                 ChannelRecord(
