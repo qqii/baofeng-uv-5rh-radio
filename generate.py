@@ -226,7 +226,6 @@ class DcsCode(IntEnum):
 class StepHundredthsKHz(IntEnum):
     """Tuning steps represented exactly as hundredths of a kHz."""
 
-    AIR_8_33 = 833
     NARROW_12_50 = 1250
     PMR_6_25 = 625
     HAM_25_00 = 2500
@@ -835,7 +834,7 @@ LISTEN_BLOCKS: Final = (
                 count=40,
                 step_hz=25_000,
                 modulation=Modulation.AM,
-                step=StepHundredthsKHz.AIR_8_33,
+                step=StepHundredthsKHz.HAM_25_00,
                 width=3,
             )
         ),
