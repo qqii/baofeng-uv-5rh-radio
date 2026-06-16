@@ -664,7 +664,7 @@ HAM_DEFAULTS: Final = MatrixDefaults(
     step=StepHundredthsKHz.HAM_25_00,
 )
 
-# Dashboard section: 001-010 is quick access; 011-099 is fixed +5/+45 matrix.
+# Dashboard section: 001-010 is quick access; 011-100 is fixed +5/+45 matrix.
 DASHBOARD_SPECIAL_BASE: Final = 1
 DASHBOARD_MATRIX_BASE: Final = 11
 DASHBOARD_BLOCK_STRIDE: Final = 5
@@ -702,17 +702,11 @@ DASHBOARD_CHANNELS: Final = (
     *(DashboardChannel(channel, HAM_DEFAULTS, "2m") for channel in DASHBOARD_VHF_CHANNELS),
 )
 
-# Open section: 1xx is reserved for open receive, aligned on 20-memory starts.
-OPEN_PMR_LOW_BASE: Final = 101
-OPEN_PMR_HIGH_BASE: Final = 121
-OPEN_UHF_BASE: Final = 141
-OPEN_VHF_BASE: Final = 151
-
 # Reserve section: 100s separate use/power; 20s separate tone choices.
-PMR_TSQL_LOW_BASE: Final = 201
-PMR_DTCS_LOW_BASE: Final = 241
-PMR_TSQL_HIGH_BASE: Final = 301
-PMR_DTCS_HIGH_BASE: Final = 341
+PMR_TSQL_LOW_BASE: Final = 101
+PMR_DTCS_LOW_BASE: Final = 141
+PMR_TSQL_HIGH_BASE: Final = 201
+PMR_DTCS_HIGH_BASE: Final = 241
 
 CALLING_70CM: Final = HamUhfFrequency.U280
 CALLING_2M: Final = HamVhfFrequency.V40
@@ -723,9 +717,15 @@ HAM_SAFE_CHANNELS: Final = tuple(
     channel for channel in HAM_CHANNELS if channel.frequency not in CALLING_FREQUENCIES
 )
 
-# Ham section: tone fallbacks with calling channels omitted.
-HAM_TSQL_HIGH_BASE: Final = 401
-HAM_DTCS_HIGH_BASE: Final = 441
+# Ham section: tone fallbacks with calling channels excluded.
+HAM_TSQL_HIGH_BASE: Final = 301
+HAM_DTCS_HIGH_BASE: Final = 341
+
+# Open section: grouped just before the 500+ receive-only banks.
+OPEN_PMR_LOW_BASE: Final = 401
+OPEN_PMR_HIGH_BASE: Final = 421
+OPEN_UHF_BASE: Final = 441
+OPEN_VHF_BASE: Final = 451
 OPEN_HAM_BLOCKS: Final = (
     OpenHamBlock(OPEN_UHF_BASE, HAM_UHF_CHANNELS, CALLING_70CM_FREQUENCY, "U280 CQ H"),
     OpenHamBlock(OPEN_VHF_BASE, HAM_VHF_CHANNELS, CALLING_2M_FREQUENCY, "V40 CQ H"),
@@ -1266,7 +1266,7 @@ def dashboard_section_markers() -> tuple[SectionMarker, ...]:
         ),
         SectionMarker(
             DASHBOARD_SPECIAL_BASE + 5,
-            "Quick controls: open and high-power PMR",
+            "Quick fallbacks: 2m default, P07 open/high",
         ),
     ]
     tone_names = "/".join(tone.label or "OPN" for tone in DASHBOARD_TONES)
@@ -1315,7 +1315,7 @@ def ham_tone_section_markers(
         markers.append(
             SectionMarker(
                 start,
-                (f"Ham high reserve {tone.mode.value} {tone.label}; calling channels omitted"),
+                (f"Ham high reserve {tone.mode.value} {tone.label}; calling channels excluded"),
             )
         )
     return tuple(markers)
