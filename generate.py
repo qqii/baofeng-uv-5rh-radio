@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, TypedDict
+from typing import TYPE_CHECKING, Final, NamedTuple, TypedDict
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
@@ -84,6 +84,137 @@ class ToneMode(StrEnum):
     DTCS = "DTCS"
 
 
+class CtcssTone(IntEnum):
+    """PMR446 CTCSS privacy-code tones represented as tenths of Hz."""
+
+    C01 = 670
+    C02 = 719
+    C03 = 744
+    C04 = 770
+    C05 = 797
+    C06 = 825
+    C07 = 854
+    C08 = 885
+    C09 = 915
+    C10 = 948
+    C11 = 974
+    C12 = 1_000
+    C13 = 1_035
+    C14 = 1_072
+    C15 = 1_109
+    C16 = 1_148
+    C17 = 1_188
+    C18 = 1_230
+    C19 = 1_273
+    C20 = 1_318
+    C21 = 1_365
+    C22 = 1_413
+    C23 = 1_462
+    C24 = 1_514
+    C25 = 1_567
+    C26 = 1_622
+    C27 = 1_679
+    C28 = 1_738
+    C29 = 1_799
+    C30 = 1_862
+    C31 = 1_928
+    C32 = 2_035
+    C33 = 2_107
+    C34 = 2_181
+    C35 = 2_257
+    C36 = 2_336
+    C37 = 2_418
+    C38 = 2_503
+
+
+class DcsCode(IntEnum):
+    """Standard DCS privacy codes represented as three-octal-digit integers."""
+
+    D023 = 23
+    D025 = 25
+    D026 = 26
+    D031 = 31
+    D032 = 32
+    D043 = 43
+    D047 = 47
+    D051 = 51
+    D054 = 54
+    D065 = 65
+    D071 = 71
+    D072 = 72
+    D073 = 73
+    D074 = 74
+    D114 = 114
+    D115 = 115
+    D116 = 116
+    D125 = 125
+    D131 = 131
+    D132 = 132
+    D134 = 134
+    D143 = 143
+    D152 = 152
+    D155 = 155
+    D156 = 156
+    D162 = 162
+    D165 = 165
+    D172 = 172
+    D174 = 174
+    D205 = 205
+    D223 = 223
+    D226 = 226
+    D243 = 243
+    D244 = 244
+    D245 = 245
+    D251 = 251
+    D261 = 261
+    D263 = 263
+    D265 = 265
+    D271 = 271
+    D306 = 306
+    D311 = 311
+    D315 = 315
+    D331 = 331
+    D343 = 343
+    D346 = 346
+    D351 = 351
+    D364 = 364
+    D365 = 365
+    D371 = 371
+    D411 = 411
+    D412 = 412
+    D413 = 413
+    D423 = 423
+    D431 = 431
+    D432 = 432
+    D445 = 445
+    D464 = 464
+    D465 = 465
+    D466 = 466
+    D503 = 503
+    D506 = 506
+    D516 = 516
+    D532 = 532
+    D546 = 546
+    D565 = 565
+    D606 = 606
+    D612 = 612
+    D624 = 624
+    D627 = 627
+    D631 = 631
+    D632 = 632
+    D654 = 654
+    D662 = 662
+    D664 = 664
+    D703 = 703
+    D712 = 712
+    D723 = 723
+    D731 = 731
+    D732 = 732
+    D734 = 734
+    D743 = 743
+    D754 = 754
+
+
 class StepHundredthsKHz(IntEnum):
     """Tuning steps represented exactly as hundredths of a kHz."""
 
@@ -116,32 +247,6 @@ class PmrFrequency(IntEnum):
     P14 = 446_168_750
     P15 = 446_181_250
     P16 = 446_193_750
-
-
-class DashboardUhfFrequency(IntEnum):
-    """UHF dashboard channels represented exactly in Hz."""
-
-    A = 433_425_000
-    B = 433_450_000
-    C = 433_475_000
-    D = 433_500_000
-    E = 433_525_000
-
-
-class DashboardVhfFrequency(IntEnum):
-    """VHF dashboard channels represented exactly in Hz."""
-
-    A = 145_225_000
-    B = 145_250_000
-    C = 145_475_000
-
-
-class OpenVhfFrequency(IntEnum):
-    """Open VHF dashboard channels represented exactly in Hz."""
-
-    A = 145_225_000
-    B = 145_250_000
-    C = 145_275_000
 
 
 class HamUhfFrequency(IntEnum):
@@ -202,24 +307,33 @@ class RadioChannel:
     frequency: Frequency
 
 
+class OpenHamBlock(NamedTuple):
+    """A contiguous open-ham memory block with an optional calling-channel label."""
+
+    base_location: int
+    channels: tuple[RadioChannel, ...]
+    calling_frequency: Frequency
+    calling_name: str
+
+
 @dataclass(frozen=True, slots=True)
 class Tone:
     """Tone squelch configuration for a generated memory."""
 
     label: str
     mode: ToneMode
-    ctcss_tenths_hz: int | None = None
-    dcs_code: int | None = None
+    ctcss_tone: CtcssTone | None = None
+    dcs_code: DcsCode | None = None
 
     @classmethod
-    def ctcss(cls, label: str, tenths_hz: int) -> Tone:
-        """Create a CTCSS tone from tenths of Hz."""
-        return cls(label=label, mode=ToneMode.TSQL, ctcss_tenths_hz=tenths_hz)
+    def ctcss(cls, tone: CtcssTone) -> Tone:
+        """Create a CTCSS tone from a typed PMR446 privacy code."""
+        return cls(label=tone.name, mode=ToneMode.TSQL, ctcss_tone=tone)
 
     @classmethod
-    def dcs(cls, label: str, code: int) -> Tone:
-        """Create a DCS tone from a three-digit code."""
-        return cls(label=label, mode=ToneMode.DTCS, dcs_code=code)
+    def dcs(cls, code: DcsCode) -> Tone:
+        """Create a DCS tone from a typed standard privacy code."""
+        return cls(label=code.name, mode=ToneMode.DTCS, dcs_code=code)
 
     @classmethod
     def none(cls) -> Tone:
@@ -229,34 +343,34 @@ class Tone:
     def __post_init__(self) -> None:
         """Validate that the tone mode and value fields agree."""
         if self.mode is ToneMode.TSQL:
-            if self.ctcss_tenths_hz is None or self.dcs_code is not None:
+            if self.ctcss_tone is None or self.dcs_code is not None:
                 msg = "TSQL tones require only a CTCSS value"
                 raise ValueError(msg)
-            if self.ctcss_tenths_hz <= 0:
+            if int(self.ctcss_tone) <= 0:
                 msg = "CTCSS tones must be positive"
                 raise ValueError(msg)
         elif self.mode is ToneMode.DTCS:
-            if self.dcs_code is None or self.ctcss_tenths_hz is not None:
+            if self.dcs_code is None or self.ctcss_tone is not None:
                 msg = "DTCS tones require only a DCS code"
                 raise ValueError(msg)
             if not 0 <= self.dcs_code <= MAX_DCS_CODE:
                 msg = "DCS codes must fit three CHIRP digits"
                 raise ValueError(msg)
-        elif self.ctcss_tenths_hz is not None or self.dcs_code is not None:
+        elif self.ctcss_tone is not None or self.dcs_code is not None:
             msg = "Open tones cannot have tone values"
             raise ValueError(msg)
 
     @property
     def rtone_freq(self) -> str:
         """Return the CHIRP receive tone frequency."""
-        tone = self.ctcss_tenths_hz
-        return format_tenths_hz(tone if tone is not None else DEFAULT_CTCSS_TENTHS_HZ)
+        tone = self.ctcss_tone
+        return format_tenths_hz(int(tone) if tone is not None else DEFAULT_CTCSS_TENTHS_HZ)
 
     @property
     def ctone_freq(self) -> str:
         """Return the CHIRP transmit tone frequency."""
-        tone = self.ctcss_tenths_hz
-        return format_tenths_hz(tone if tone is not None else DEFAULT_CTCSS_TENTHS_HZ)
+        tone = self.ctcss_tone
+        return format_tenths_hz(int(tone) if tone is not None else DEFAULT_CTCSS_TENTHS_HZ)
 
     @property
     def dtcs_code(self) -> str:
@@ -343,79 +457,92 @@ def format_tenths_hz(tenths_hz: int) -> str:
     return f"{whole}.{tenths}"
 
 
+def radio_channel(label: str, frequency: IntEnum) -> RadioChannel:
+    """Build a radio channel from a typed frequency enum."""
+    return RadioChannel(label, Frequency(int(frequency)))
+
+
 def pmr_channel(frequency: PmrFrequency) -> RadioChannel:
     """Build a PMR radio channel from its enum value."""
-    return RadioChannel(frequency.name, Frequency(int(frequency)))
-
-
-def dashboard_uhf_channel(frequency: DashboardUhfFrequency) -> RadioChannel:
-    """Build a dashboard UHF radio channel from its enum value."""
-    return RadioChannel(f"70{frequency.name}", Frequency(int(frequency)))
-
-
-def dashboard_vhf_channel(frequency: DashboardVhfFrequency) -> RadioChannel:
-    """Build a dashboard VHF radio channel from its enum value."""
-    return RadioChannel(f"2M{frequency.name}", Frequency(int(frequency)))
-
-
-def open_vhf_channel(frequency: OpenVhfFrequency) -> RadioChannel:
-    """Build an open dashboard VHF radio channel from its enum value."""
-    return RadioChannel(f"2M{frequency.name}", Frequency(int(frequency)))
+    return radio_channel(frequency.name, frequency)
 
 
 def ham_uhf_channel(frequency: HamUhfFrequency) -> RadioChannel:
     """Build a 70cm amateur radio channel from its enum value."""
-    return RadioChannel(f"70{frequency.name}", Frequency(int(frequency)))
+    return radio_channel(f"70{frequency.name}", frequency)
 
 
 def ham_vhf_channel(frequency: HamVhfFrequency) -> RadioChannel:
     """Build a 2m amateur radio channel from its enum value."""
     channel_suffix = frequency.name.removeprefix("CH_")
-    return RadioChannel(f"2M{channel_suffix}", Frequency(int(frequency)))
+    return radio_channel(f"2M{channel_suffix}", frequency)
 
 
 OPEN_TONE: Final = Tone.none()
 TONES_DASH: Final = (
-    Tone.ctcss("C05", 797),
-    Tone.ctcss("C24", 1514),
-    Tone.dcs("D073", 73),
-    Tone.dcs("D134", 134),
+    Tone.ctcss(CtcssTone.C05),
+    Tone.ctcss(CtcssTone.C24),
+    Tone.dcs(DcsCode.D073),
+    Tone.dcs(DcsCode.D134),
 )
 CTCSS_TONES: Final = (
-    Tone.ctcss("C05", 797),
-    Tone.ctcss("C24", 1514),
-    Tone.ctcss("C31", 1928),
-    Tone.ctcss("C33", 2107),
-    Tone.ctcss("C38", 2503),
+    Tone.ctcss(CtcssTone.C05),
+    Tone.ctcss(CtcssTone.C24),
+    Tone.ctcss(CtcssTone.C31),
+    Tone.ctcss(CtcssTone.C33),
+    Tone.ctcss(CtcssTone.C38),
 )
 DCS_TONES: Final = (
-    Tone.dcs("D073", 73),
-    Tone.dcs("D134", 134),
-    Tone.dcs("D311", 311),
-    Tone.dcs("D503", 503),
-    Tone.dcs("D731", 731),
+    Tone.dcs(DcsCode.D073),
+    Tone.dcs(DcsCode.D134),
+    Tone.dcs(DcsCode.D311),
+    Tone.dcs(DcsCode.D503),
+    Tone.dcs(DcsCode.D731),
 )
 
 PMR_CHANNELS: Final = tuple(pmr_channel(frequency) for frequency in PmrFrequency)
-DASHBOARD_PMR_CHANNELS: Final = (
-    pmr_channel(PmrFrequency.P05),
-    pmr_channel(PmrFrequency.P10),
-    pmr_channel(PmrFrequency.P15),
+DASHBOARD_PMR_FREQUENCIES: Final = (
+    PmrFrequency.P07,
+    PmrFrequency.P11,
+    PmrFrequency.P13,
 )
-DASHBOARD_UHF_CHANNELS: Final = tuple(
-    dashboard_uhf_channel(frequency) for frequency in DashboardUhfFrequency
+DASHBOARD_UHF_FREQUENCIES: Final = (
+    HamUhfFrequency.B,
+    HamUhfFrequency.D,
+    HamUhfFrequency.F,
+    HamUhfFrequency.G,
+    HamUhfFrequency.H,
 )
-DASHBOARD_VHF_CHANNELS: Final = tuple(
-    dashboard_vhf_channel(frequency) for frequency in DashboardVhfFrequency
-)
-DASHBOARD_VHF_OPEN_CHANNELS: Final = tuple(
-    open_vhf_channel(frequency) for frequency in OpenVhfFrequency
+DASHBOARD_VHF_FREQUENCIES: Final = (
+    HamVhfFrequency.E,
+    HamVhfFrequency.G,
+    HamVhfFrequency.K,
 )
 HAM_UHF_CHANNELS: Final = tuple(ham_uhf_channel(frequency) for frequency in HamUhfFrequency)
 HAM_VHF_CHANNELS: Final = tuple(ham_vhf_channel(frequency) for frequency in HamVhfFrequency)
+HAM_CHANNELS: Final = (*HAM_UHF_CHANNELS, *HAM_VHF_CHANNELS)
+DASHBOARD_PMR_CHANNELS: Final = tuple(
+    pmr_channel(frequency) for frequency in DASHBOARD_PMR_FREQUENCIES
+)
+DASHBOARD_UHF_CHANNELS: Final = tuple(
+    ham_uhf_channel(frequency) for frequency in DASHBOARD_UHF_FREQUENCIES
+)
+DASHBOARD_VHF_CHANNELS: Final = tuple(
+    ham_vhf_channel(frequency) for frequency in DASHBOARD_VHF_FREQUENCIES
+)
 
-CALLING_70CM: Final = Frequency(433_500_000)
-CALLING_2M: Final = Frequency(145_500_000)
+CALLING_70CM: Final = HamUhfFrequency.E
+CALLING_2M: Final = HamVhfFrequency.M
+CALLING_70CM_FREQUENCY: Final = Frequency(int(CALLING_70CM))
+CALLING_2M_FREQUENCY: Final = Frequency(int(CALLING_2M))
+CALLING_FREQUENCIES: Final = frozenset((CALLING_70CM_FREQUENCY, CALLING_2M_FREQUENCY))
+HAM_SAFE_CHANNELS: Final = tuple(
+    channel for channel in HAM_CHANNELS if channel.frequency not in CALLING_FREQUENCIES
+)
+OPEN_HAM_BLOCKS: Final = (
+    OpenHamBlock(501, HAM_UHF_CHANNELS, CALLING_70CM_FREQUENCY, "CQ 70CM H"),
+    OpenHamBlock(521, HAM_VHF_CHANNELS, CALLING_2M_FREQUENCY, "CQ 2M H"),
+)
 
 
 def add_record(
@@ -450,26 +577,40 @@ def add_dashboard_matrix(
     for channel_index, channel in enumerate(channels):
         for tone_index, tone in enumerate(TONES_DASH):
             location = base_location + channel_index * len(TONES_DASH) + tone_index
-            low_spec = ChannelSpec(
+            for power, offset in ((Power.LOW, 0), (Power.HIGH, high_power_offset)):
+                add_record(
+                    records,
+                    location + offset,
+                    ChannelSpec(
+                        channel=channel,
+                        tone=tone,
+                        modulation=defaults.modulation,
+                        step=defaults.step,
+                        power=power,
+                    ),
+                )
+
+
+def add_open_channels(
+    records: list[ChannelRecord],
+    base_location: int,
+    channels: Sequence[RadioChannel],
+    defaults: MatrixDefaults,
+    power: Power,
+) -> None:
+    """Add consecutive open-squelch channels."""
+    for channel_index, channel in enumerate(channels):
+        add_record(
+            records,
+            base_location + channel_index,
+            ChannelSpec(
                 channel=channel,
-                tone=tone,
+                tone=OPEN_TONE,
                 modulation=defaults.modulation,
                 step=defaults.step,
-                power=Power.LOW,
-            )
-            high_spec = ChannelSpec(
-                channel=channel,
-                tone=tone,
-                modulation=defaults.modulation,
-                step=defaults.step,
-                power=Power.HIGH,
-            )
-            add_record(records, location, low_spec)
-            add_record(
-                records,
-                location + high_power_offset,
-                high_spec,
-            )
+                power=power,
+            ),
+        )
 
 
 def add_extended_pmr(
@@ -501,13 +642,8 @@ def add_extended_ham(
     tones: Sequence[Tone],
 ) -> None:
     """Add ham tone blocks while omitting calling channels."""
-    ham_safe_channels = tuple(
-        channel
-        for channel in (*HAM_UHF_CHANNELS, *HAM_VHF_CHANNELS)
-        if channel.frequency not in {CALLING_70CM, CALLING_2M}
-    )
     for tone_index, tone in enumerate(tones):
-        for channel_index, channel in enumerate(ham_safe_channels):
+        for channel_index, channel in enumerate(HAM_SAFE_CHANNELS):
             location = base_zone + tone_index * 20 + channel_index + 1
             add_record(
                 records,
@@ -524,33 +660,24 @@ def add_extended_ham(
 
 def add_open_ham_records(records: list[ChannelRecord]) -> None:
     """Add open ham channels and mark calling channels explicitly."""
-    for channel_index, channel in enumerate(HAM_UHF_CHANNELS):
-        name = "CQ 70CM H" if channel.frequency == CALLING_70CM else f"{channel.label} OPN H"
-        records.append(
-            ChannelRecord(
-                location=501 + channel_index,
-                name=name,
-                frequency=channel.frequency,
-                tone=OPEN_TONE,
-                modulation=Modulation.FM,
-                step=StepHundredthsKHz.HAM_25_00,
-                power=Power.HIGH,
+    for block in OPEN_HAM_BLOCKS:
+        for channel_index, channel in enumerate(block.channels):
+            name = (
+                block.calling_name
+                if channel.frequency == block.calling_frequency
+                else f"{channel.label} OPN H"
             )
-        )
-
-    for channel_index, channel in enumerate(HAM_VHF_CHANNELS):
-        name = "CQ 2M H" if channel.frequency == CALLING_2M else f"{channel.label} OPN H"
-        records.append(
-            ChannelRecord(
-                location=521 + channel_index,
-                name=name,
-                frequency=channel.frequency,
-                tone=OPEN_TONE,
-                modulation=Modulation.FM,
-                step=StepHundredthsKHz.HAM_25_00,
-                power=Power.HIGH,
+            records.append(
+                ChannelRecord(
+                    location=block.base_location + channel_index,
+                    name=name,
+                    frequency=channel.frequency,
+                    tone=OPEN_TONE,
+                    modulation=Modulation.FM,
+                    step=StepHundredthsKHz.HAM_25_00,
+                    power=Power.HIGH,
+                )
             )
-        )
 
 
 def build_records() -> list[ChannelRecord]:
@@ -585,42 +712,36 @@ def build_records() -> list[ChannelRecord]:
         ),
     )
 
-    for channel_index, channel in enumerate(PMR_CHANNELS):
-        add_record(
-            records,
-            75 + channel_index,
-            ChannelSpec(
-                channel=channel,
-                tone=OPEN_TONE,
-                modulation=Modulation.NFM,
-                step=StepHundredthsKHz.PMR_6_25,
-                power=Power.LOW,
-            ),
-        )
-    for channel_index, channel in enumerate(DASHBOARD_UHF_CHANNELS):
-        add_record(
-            records,
-            91 + channel_index,
-            ChannelSpec(
-                channel=channel,
-                tone=OPEN_TONE,
-                modulation=Modulation.FM,
-                step=StepHundredthsKHz.HAM_25_00,
-                power=Power.HIGH,
-            ),
-        )
-    for channel_index, channel in enumerate(DASHBOARD_VHF_OPEN_CHANNELS):
-        add_record(
-            records,
-            96 + channel_index,
-            ChannelSpec(
-                channel=channel,
-                tone=OPEN_TONE,
-                modulation=Modulation.FM,
-                step=StepHundredthsKHz.HAM_25_00,
-                power=Power.HIGH,
-            ),
-        )
+    add_open_channels(
+        records,
+        75,
+        PMR_CHANNELS,
+        MatrixDefaults(
+            modulation=Modulation.NFM,
+            step=StepHundredthsKHz.PMR_6_25,
+        ),
+        Power.LOW,
+    )
+    add_open_channels(
+        records,
+        91,
+        DASHBOARD_UHF_CHANNELS,
+        MatrixDefaults(
+            modulation=Modulation.FM,
+            step=StepHundredthsKHz.HAM_25_00,
+        ),
+        Power.HIGH,
+    )
+    add_open_channels(
+        records,
+        96,
+        DASHBOARD_VHF_CHANNELS,
+        MatrixDefaults(
+            modulation=Modulation.FM,
+            step=StepHundredthsKHz.HAM_25_00,
+        ),
+        Power.HIGH,
+    )
 
     add_extended_pmr(records, 100, CTCSS_TONES, Power.LOW)
     add_extended_pmr(records, 200, DCS_TONES, Power.LOW)
