@@ -1,0 +1,40 @@
+assert_lefthook_installed = true
+min_version = "2.0.15"
+source_dir = ".config/lefthook"
+source_dir_local = ".config/lefthook-local"
+
+[pre-commit]
+parallel = true
+
+[[pre-commit.jobs]]
+name = "validate"
+glob = ".config/lefthook.toml"
+run = "lefthook validate"
+
+[[pre-commit.jobs]]
+name = "uv-lock"
+glob = ["pyproject.toml", "uv.lock"]
+run = "uv lock --no-progress --check"
+
+[[pre-commit.jobs]]
+name = "ruff"
+glob = ["*.py"]
+file_types = ["text/x-python"]
+
+[pre-commit.jobs.group]
+parallel = false
+
+[[pre-commit.jobs.group.jobs]]
+name = "ruff-format"
+run = "ruff format"
+
+[[pre-commit.jobs.group.jobs]]
+name = "ruff-lint"
+run = "ruff check --fix"
+
+[[pre-commit.jobs]]
+name = "pyrefly"
+run = "pyrefly check"
+
+[commit-msg.scripts."conventional-commit.sh"]
+runner = "bash"
