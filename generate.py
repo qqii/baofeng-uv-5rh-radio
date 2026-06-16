@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import IntEnum, StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, NamedTuple, TypedDict
@@ -55,8 +55,16 @@ CSV_HEADER: Final[tuple[str, ...]] = tuple(ChirpCsvRow.__annotations__)
 class Modulation(StrEnum):
     """CHIRP modulation modes used by the generated memories."""
 
+    AM = "AM"
     FM = "FM"
     NFM = "NFM"
+
+
+class Duplex(StrEnum):
+    """CHIRP duplex values used by generated memories."""
+
+    SIMPLEX = ""
+    RECEIVE_ONLY = "off"
 
 
 class Power(StrEnum):
@@ -218,6 +226,8 @@ class DcsCode(IntEnum):
 class StepHundredthsKHz(IntEnum):
     """Tuning steps represented exactly as hundredths of a kHz."""
 
+    AIR_8_33 = 833
+    NARROW_12_50 = 1250
     PMR_6_25 = 625
     HAM_25_00 = 2500
 
@@ -250,34 +260,95 @@ class PmrFrequency(IntEnum):
 
 
 class HamUhfFrequency(IntEnum):
-    """70cm amateur channels represented exactly in Hz."""
+    """RSGB 70cm amateur FM/DV simplex channels represented exactly in Hz."""
 
-    A = 433_400_000
-    B = 433_425_000
-    C = 433_450_000
-    D = 433_475_000
-    E = 433_500_000
-    F = 433_525_000
-    G = 433_550_000
-    H = 433_575_000
+    U272 = 433_400_000
+    U274 = 433_425_000
+    U276 = 433_450_000
+    U278 = 433_475_000
+    U280 = 433_500_000
+    U282 = 433_525_000
+    U284 = 433_550_000
+    U286 = 433_575_000
 
 
 class HamVhfFrequency(IntEnum):
-    """2m amateur channels represented exactly in Hz."""
+    """RSGB 2m amateur FM/DV simplex channels represented exactly in Hz."""
 
-    A = 145_200_000
-    B = 145_225_000
-    C = 145_250_000
-    D = 145_275_000
-    E = 145_300_000
-    F = 145_325_000
-    G = 145_350_000
-    H = 145_375_000
-    CH_I = 145_400_000
-    J = 145_425_000
-    K = 145_450_000
-    L = 145_475_000
-    M = 145_500_000
+    V16 = 145_200_000
+    V18 = 145_225_000
+    V20 = 145_250_000
+    V22 = 145_275_000
+    V24 = 145_300_000
+    V26 = 145_325_000
+    V28 = 145_350_000
+    V30 = 145_375_000
+    V32 = 145_400_000
+    V34 = 145_425_000
+    V36 = 145_450_000
+    V38 = 145_475_000
+    V40 = 145_500_000
+
+
+class AirbandListenFrequency(IntEnum):
+    """Upper airband AM listen-only channels represented exactly in Hz."""
+
+    AIR136000 = 136_000_000
+    AIR136250 = 136_250_000
+    AIR136500 = 136_500_000
+    AIR136750 = 136_750_000
+    AIR136975 = 136_975_000
+
+
+class MarineVhfListenFrequency(IntEnum):
+    """Marine VHF listen-only channels represented exactly in Hz."""
+
+    M06 = 156_300_000
+    M08 = 156_400_000
+    M09 = 156_450_000
+    M10 = 156_500_000
+    M13 = 156_650_000
+    M16 = 156_800_000
+    M67 = 156_375_000
+    M68 = 156_425_000
+    M69 = 156_475_000
+    M72 = 156_625_000
+    M73 = 156_675_000
+    M77 = 156_875_000
+
+
+class WeatherListenFrequency(IntEnum):
+    """NOAA weather radio listen-only channels represented exactly in Hz."""
+
+    WX1 = 162_550_000
+    WX2 = 162_400_000
+    WX3 = 162_475_000
+    WX4 = 162_425_000
+    WX5 = 162_450_000
+    WX6 = 162_500_000
+    WX7 = 162_525_000
+
+
+class SrdListenFrequency(IntEnum):
+    """433 MHz SRD/LPD listen-only channels represented exactly in Hz."""
+
+    SRD075 = 433_075_000
+    SRD250 = 433_250_000
+    SRD800 = 433_800_000
+    SRD920 = 433_920_000
+    SRD075H = 434_075_000
+    SRD300 = 434_300_000
+    SRD500 = 434_500_000
+    SRD775 = 434_775_000
+
+
+class SpaceListenFrequency(IntEnum):
+    """Amateur satellite and space downlink listen-only channels represented exactly in Hz."""
+
+    ISS_VOICE = 145_800_000
+    APRS = 145_825_000
+    SAT145950 = 145_950_000
+    SAT436500 = 436_500_000
 
 
 @dataclass(frozen=True, slots=True, order=True)
@@ -314,6 +385,62 @@ class OpenHamBlock(NamedTuple):
     channels: tuple[RadioChannel, ...]
     calling_frequency: Frequency
     calling_name: str
+
+
+class DashboardChannel(NamedTuple):
+    """A dashboard channel plus its CHIRP defaults and display band label."""
+
+    channel: RadioChannel
+    defaults: MatrixDefaults
+    band_label: str
+
+
+class ListenChannel(NamedTuple):
+    """A receive-only memory definition."""
+
+    label: str
+    frequency: Frequency
+    modulation: Modulation
+    step: StepHundredthsKHz
+
+
+class ListenBlock(NamedTuple):
+    """A receive-only memory block."""
+
+    base_location: int
+    channels: tuple[ListenChannel, ...]
+    comment: str
+
+
+class ListenRangeSpec(NamedTuple):
+    """Settings for generating a receive-only channel range."""
+
+    prefix: str
+    start_hz: int
+    count: int
+    step_hz: int
+    modulation: Modulation
+    step: StepHundredthsKHz
+    first_channel: int = 1
+    width: int = 2
+
+
+class ListenListSpec(NamedTuple):
+    """Settings for generating receive-only channels from exact frequencies."""
+
+    prefix: str
+    frequencies_hz: tuple[int, ...]
+    modulation: Modulation
+    step: StepHundredthsKHz
+    first_channel: int = 1
+    width: int = 2
+
+
+class SectionMarker(NamedTuple):
+    """A comment placed on the first memory in a logical section."""
+
+    location: int
+    comment: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -395,6 +522,8 @@ class ChannelRecord:
     modulation: Modulation
     step: StepHundredthsKHz
     power: Power
+    comment: str = ""
+    duplex: Duplex = Duplex.SIMPLEX
 
     def __post_init__(self) -> None:
         """Validate CHIRP memory limits."""
@@ -411,7 +540,7 @@ class ChannelRecord:
             "Location": str(self.location),
             "Name": self.name,
             "Frequency": self.frequency.chirp_value,
-            "Duplex": "",
+            "Duplex": self.duplex.value,
             "Offset": Frequency(0).chirp_value,
             "Tone": self.tone.mode.value,
             "rToneFreq": self.tone.rtone_freq,
@@ -424,7 +553,7 @@ class ChannelRecord:
             "TStep": self.step.chirp_value,
             "Skip": "",
             "Power": self.power.chirp_value,
-            "Comment": "",
+            "Comment": self.comment,
             "URCALL": "",
             "RPT1CALL": "",
             "RPT2CALL": "",
@@ -462,6 +591,44 @@ def radio_channel(label: str, frequency: IntEnum) -> RadioChannel:
     return RadioChannel(label, Frequency(int(frequency)))
 
 
+def listen_channel(
+    label: str,
+    frequency: IntEnum | int,
+    modulation: Modulation,
+    step: StepHundredthsKHz,
+) -> ListenChannel:
+    """Build a receive-only channel from a typed frequency enum."""
+    return ListenChannel(label, Frequency(int(frequency)), modulation, step)
+
+
+def listen_range(spec: ListenRangeSpec) -> tuple[ListenChannel, ...]:
+    """Build a receive-only channel range using exact integer Hz spacing."""
+    return tuple(
+        listen_channel(
+            f"{spec.prefix}{channel_number:0{spec.width}d} RX",
+            spec.start_hz + index * spec.step_hz,
+            spec.modulation,
+            spec.step,
+        )
+        for index, channel_number in enumerate(
+            range(spec.first_channel, spec.first_channel + spec.count)
+        )
+    )
+
+
+def listen_channels(spec: ListenListSpec) -> tuple[ListenChannel, ...]:
+    """Build receive-only channels from an exact frequency list."""
+    return tuple(
+        listen_channel(
+            f"{spec.prefix}{channel_number:0{spec.width}d} RX",
+            frequency_hz,
+            spec.modulation,
+            spec.step,
+        )
+        for channel_number, frequency_hz in enumerate(spec.frequencies_hz, spec.first_channel)
+    )
+
+
 def pmr_channel(frequency: PmrFrequency) -> RadioChannel:
     """Build a PMR radio channel from its enum value."""
     return radio_channel(frequency.name, frequency)
@@ -469,54 +636,54 @@ def pmr_channel(frequency: PmrFrequency) -> RadioChannel:
 
 def ham_uhf_channel(frequency: HamUhfFrequency) -> RadioChannel:
     """Build a 70cm amateur radio channel from its enum value."""
-    return radio_channel(f"70{frequency.name}", frequency)
+    return radio_channel(frequency.name, frequency)
 
 
 def ham_vhf_channel(frequency: HamVhfFrequency) -> RadioChannel:
     """Build a 2m amateur radio channel from its enum value."""
-    channel_suffix = frequency.name.removeprefix("CH_")
-    return radio_channel(f"2M{channel_suffix}", frequency)
+    return radio_channel(frequency.name, frequency)
 
 
 OPEN_TONE: Final = Tone.none()
-TONES_DASH: Final = (
+TSQL_TONES: Final = (
     Tone.ctcss(CtcssTone.C05),
     Tone.ctcss(CtcssTone.C24),
+)
+DTCS_TONES: Final = (
     Tone.dcs(DcsCode.D073),
     Tone.dcs(DcsCode.D134),
 )
-CTCSS_TONES: Final = (
-    Tone.ctcss(CtcssTone.C05),
-    Tone.ctcss(CtcssTone.C24),
-    Tone.ctcss(CtcssTone.C31),
-    Tone.ctcss(CtcssTone.C33),
-    Tone.ctcss(CtcssTone.C38),
-)
-DCS_TONES: Final = (
-    Tone.dcs(DcsCode.D073),
-    Tone.dcs(DcsCode.D134),
-    Tone.dcs(DcsCode.D311),
-    Tone.dcs(DcsCode.D503),
-    Tone.dcs(DcsCode.D731),
-)
+DASHBOARD_TONES: Final = (*TSQL_TONES, *DTCS_TONES)
 
 PMR_CHANNELS: Final = tuple(pmr_channel(frequency) for frequency in PmrFrequency)
+PMR_DEFAULTS: Final = MatrixDefaults(
+    modulation=Modulation.NFM,
+    step=StepHundredthsKHz.PMR_6_25,
+)
+HAM_DEFAULTS: Final = MatrixDefaults(
+    modulation=Modulation.FM,
+    step=StepHundredthsKHz.HAM_25_00,
+)
+
+# Dashboard section: 001-010 is quick access; 011-099 is fixed +5/+45 matrix.
+DASHBOARD_SPECIAL_BASE: Final = 1
+DASHBOARD_MATRIX_BASE: Final = 11
+DASHBOARD_BLOCK_STRIDE: Final = 5
+DASHBOARD_POWER_OFFSET: Final = 45
 DASHBOARD_PMR_FREQUENCIES: Final = (
     PmrFrequency.P07,
     PmrFrequency.P11,
     PmrFrequency.P13,
 )
 DASHBOARD_UHF_FREQUENCIES: Final = (
-    HamUhfFrequency.B,
-    HamUhfFrequency.D,
-    HamUhfFrequency.F,
-    HamUhfFrequency.G,
-    HamUhfFrequency.H,
+    HamUhfFrequency.U274,
+    HamUhfFrequency.U278,
+    HamUhfFrequency.U282,
 )
 DASHBOARD_VHF_FREQUENCIES: Final = (
-    HamVhfFrequency.E,
-    HamVhfFrequency.G,
-    HamVhfFrequency.K,
+    HamVhfFrequency.V24,
+    HamVhfFrequency.V28,
+    HamVhfFrequency.V36,
 )
 HAM_UHF_CHANNELS: Final = tuple(ham_uhf_channel(frequency) for frequency in HamUhfFrequency)
 HAM_VHF_CHANNELS: Final = tuple(ham_vhf_channel(frequency) for frequency in HamVhfFrequency)
@@ -530,18 +697,313 @@ DASHBOARD_UHF_CHANNELS: Final = tuple(
 DASHBOARD_VHF_CHANNELS: Final = tuple(
     ham_vhf_channel(frequency) for frequency in DASHBOARD_VHF_FREQUENCIES
 )
+DASHBOARD_CHANNELS: Final = (
+    *(DashboardChannel(channel, PMR_DEFAULTS, "PMR") for channel in DASHBOARD_PMR_CHANNELS),
+    *(DashboardChannel(channel, HAM_DEFAULTS, "70cm") for channel in DASHBOARD_UHF_CHANNELS),
+    *(DashboardChannel(channel, HAM_DEFAULTS, "2m") for channel in DASHBOARD_VHF_CHANNELS),
+)
 
-CALLING_70CM: Final = HamUhfFrequency.E
-CALLING_2M: Final = HamVhfFrequency.M
+# Open section: 1xx is reserved for open receive, aligned on 20-memory starts.
+OPEN_PMR_LOW_BASE: Final = 101
+OPEN_PMR_HIGH_BASE: Final = 121
+OPEN_UHF_BASE: Final = 141
+OPEN_VHF_BASE: Final = 151
+
+# Reserve section: 100s separate use/power; 20s separate tone choices.
+PMR_TSQL_LOW_BASE: Final = 201
+PMR_DTCS_LOW_BASE: Final = 241
+PMR_TSQL_HIGH_BASE: Final = 301
+PMR_DTCS_HIGH_BASE: Final = 341
+
+CALLING_70CM: Final = HamUhfFrequency.U280
+CALLING_2M: Final = HamVhfFrequency.V40
 CALLING_70CM_FREQUENCY: Final = Frequency(int(CALLING_70CM))
 CALLING_2M_FREQUENCY: Final = Frequency(int(CALLING_2M))
 CALLING_FREQUENCIES: Final = frozenset((CALLING_70CM_FREQUENCY, CALLING_2M_FREQUENCY))
 HAM_SAFE_CHANNELS: Final = tuple(
     channel for channel in HAM_CHANNELS if channel.frequency not in CALLING_FREQUENCIES
 )
+
+# Ham section: tone fallbacks with calling channels omitted.
+HAM_TSQL_HIGH_BASE: Final = 401
+HAM_DTCS_HIGH_BASE: Final = 441
 OPEN_HAM_BLOCKS: Final = (
-    OpenHamBlock(501, HAM_UHF_CHANNELS, CALLING_70CM_FREQUENCY, "CQ 70CM H"),
-    OpenHamBlock(521, HAM_VHF_CHANNELS, CALLING_2M_FREQUENCY, "CQ 2M H"),
+    OpenHamBlock(OPEN_UHF_BASE, HAM_UHF_CHANNELS, CALLING_70CM_FREQUENCY, "U280 CQ H"),
+    OpenHamBlock(OPEN_VHF_BASE, HAM_VHF_CHANNELS, CALLING_2M_FREQUENCY, "V40 CQ H"),
+)
+
+# Listen-only section: 500+ memories are receive-only and export with Duplex=off.
+LISTEN_AIRBAND_BASE: Final = 500
+LISTEN_MIL_AIR_LOW_BASE: Final = 550
+LISTEN_MIL_AIR_MID_BASE: Final = 600
+LISTEN_MIL_AIR_HIGH_BASE: Final = 650
+LISTEN_MARINE_BASE: Final = 700
+LISTEN_WEATHER_BASE: Final = 730
+LISTEN_SPACE_BASE: Final = 750
+LISTEN_PMR_BASE: Final = 770
+LISTEN_LPD_BASE: Final = 790
+LISTEN_US_PERSONAL_BASE: Final = 860
+LISTEN_US_BUSINESS_BASE: Final = 890
+LISTEN_AU_CB_BASE: Final = 900
+LISTEN_JP_LOW_POWER_BASE: Final = 980
+
+WEATHER_FREQUENCIES_HZ: Final = (
+    161_650_000,
+    161_750_000,
+    161_775_000,
+    162_000_000,
+    int(WeatherListenFrequency.WX2),
+    int(WeatherListenFrequency.WX4),
+    int(WeatherListenFrequency.WX5),
+    int(WeatherListenFrequency.WX3),
+    int(WeatherListenFrequency.WX6),
+    int(WeatherListenFrequency.WX7),
+    int(WeatherListenFrequency.WX1),
+    163_275_000,
+)
+SPACE_FREQUENCIES_HZ: Final = (
+    137_100_000,
+    137_620_000,
+    137_912_500,
+    int(SpaceListenFrequency.ISS_VOICE),
+    int(SpaceListenFrequency.APRS),
+    int(SpaceListenFrequency.SAT145950),
+    145_975_000,
+    int(SpaceListenFrequency.SAT436500),
+    437_100_000,
+    437_500_000,
+    437_800_000,
+    437_975_000,
+    250_550_000,
+    255_550_000,
+)
+FRS_GMRS_FREQUENCIES_HZ: Final = (
+    462_562_500,
+    462_587_500,
+    462_612_500,
+    462_637_500,
+    462_662_500,
+    462_687_500,
+    462_712_500,
+    467_562_500,
+    467_587_500,
+    467_612_500,
+    467_637_500,
+    467_662_500,
+    467_687_500,
+    467_712_500,
+    462_550_000,
+    462_575_000,
+    462_600_000,
+    462_625_000,
+    462_650_000,
+    462_675_000,
+    462_700_000,
+    462_725_000,
+    467_550_000,
+    467_575_000,
+    467_600_000,
+    467_625_000,
+    467_650_000,
+    467_675_000,
+    467_700_000,
+    467_725_000,
+)
+US_BUSINESS_FREQUENCIES_HZ: Final = (
+    151_820_000,
+    151_880_000,
+    151_940_000,
+    154_570_000,
+    154_600_000,
+    464_500_000,
+    464_550_000,
+    467_850_000,
+    467_875_000,
+    467_900_000,
+)
+JAPAN_LOW_POWER_FREQUENCIES_HZ: Final = (
+    *tuple(422_050_000 + index * 12_500 for index in range(11)),
+    *tuple(422_200_000 + index * 12_500 for index in range(9)),
+)
+LISTEN_BLOCKS: Final = (
+    ListenBlock(
+        LISTEN_AIRBAND_BASE,
+        listen_range(
+            ListenRangeSpec(
+                prefix="AIR",
+                start_hz=136_000_000,
+                count=40,
+                step_hz=25_000,
+                modulation=Modulation.AM,
+                step=StepHundredthsKHz.AIR_8_33,
+                width=3,
+            )
+        ),
+        "Listen only: upper civil airband AM",
+    ),
+    ListenBlock(
+        LISTEN_MIL_AIR_LOW_BASE,
+        listen_range(
+            ListenRangeSpec(
+                prefix="MIL",
+                start_hz=225_000_000,
+                count=50,
+                step_hz=250_000,
+                modulation=Modulation.AM,
+                step=StepHundredthsKHz.HAM_25_00,
+                width=3,
+            )
+        ),
+        "Listen only: military air AM low",
+    ),
+    ListenBlock(
+        LISTEN_MIL_AIR_MID_BASE,
+        listen_range(
+            ListenRangeSpec(
+                prefix="MIL",
+                start_hz=237_500_000,
+                count=50,
+                step_hz=250_000,
+                modulation=Modulation.AM,
+                step=StepHundredthsKHz.HAM_25_00,
+                first_channel=51,
+                width=3,
+            )
+        ),
+        "Listen only: military air AM mid",
+    ),
+    ListenBlock(
+        LISTEN_MIL_AIR_HIGH_BASE,
+        listen_range(
+            ListenRangeSpec(
+                prefix="MIL",
+                start_hz=250_000_000,
+                count=41,
+                step_hz=250_000,
+                modulation=Modulation.AM,
+                step=StepHundredthsKHz.HAM_25_00,
+                first_channel=101,
+                width=3,
+            )
+        ),
+        "Listen only: military air AM high",
+    ),
+    ListenBlock(
+        LISTEN_MARINE_BASE,
+        listen_range(
+            ListenRangeSpec(
+                prefix="MAR",
+                start_hz=156_050_000,
+                count=28,
+                step_hz=50_000,
+                modulation=Modulation.FM,
+                step=StepHundredthsKHz.HAM_25_00,
+            )
+        ),
+        "Listen only: marine VHF ship-side",
+    ),
+    ListenBlock(
+        LISTEN_WEATHER_BASE,
+        listen_channels(
+            ListenListSpec(
+                prefix="WX",
+                frequencies_hz=WEATHER_FREQUENCIES_HZ,
+                modulation=Modulation.FM,
+                step=StepHundredthsKHz.HAM_25_00,
+            )
+        ),
+        "Listen only: North America weather",
+    ),
+    ListenBlock(
+        LISTEN_SPACE_BASE,
+        listen_channels(
+            ListenListSpec(
+                prefix="SAT",
+                frequencies_hz=SPACE_FREQUENCIES_HZ,
+                modulation=Modulation.FM,
+                step=StepHundredthsKHz.HAM_25_00,
+            )
+        ),
+        "Listen only: space and satellite",
+    ),
+    ListenBlock(
+        LISTEN_PMR_BASE,
+        tuple(
+            listen_channel(
+                f"PMR{index:02d} RX",
+                frequency,
+                Modulation.NFM,
+                StepHundredthsKHz.PMR_6_25,
+            )
+            for index, frequency in enumerate(PmrFrequency, 1)
+        ),
+        "Listen only: UK/EU PMR446",
+    ),
+    ListenBlock(
+        LISTEN_LPD_BASE,
+        listen_range(
+            ListenRangeSpec(
+                prefix="LPD",
+                start_hz=433_075_000,
+                count=69,
+                step_hz=25_000,
+                modulation=Modulation.NFM,
+                step=StepHundredthsKHz.NARROW_12_50,
+            )
+        ),
+        "Listen only: EU LPD433/SRD",
+    ),
+    ListenBlock(
+        LISTEN_US_PERSONAL_BASE,
+        listen_channels(
+            ListenListSpec(
+                prefix="US",
+                frequencies_hz=FRS_GMRS_FREQUENCIES_HZ,
+                modulation=Modulation.NFM,
+                step=StepHundredthsKHz.NARROW_12_50,
+            )
+        ),
+        "Listen only: USA FRS/GMRS",
+    ),
+    ListenBlock(
+        LISTEN_US_BUSINESS_BASE,
+        listen_channels(
+            ListenListSpec(
+                prefix="USB",
+                frequencies_hz=US_BUSINESS_FREQUENCIES_HZ,
+                modulation=Modulation.NFM,
+                step=StepHundredthsKHz.NARROW_12_50,
+            )
+        ),
+        "Listen only: USA MURS/business",
+    ),
+    ListenBlock(
+        LISTEN_AU_CB_BASE,
+        listen_range(
+            ListenRangeSpec(
+                prefix="AUC",
+                start_hz=476_425_000,
+                count=80,
+                step_hz=12_500,
+                modulation=Modulation.NFM,
+                step=StepHundredthsKHz.NARROW_12_50,
+                width=3,
+            )
+        ),
+        "Listen only: AU/NZ UHF CB",
+    ),
+    ListenBlock(
+        LISTEN_JP_LOW_POWER_BASE,
+        listen_channels(
+            ListenListSpec(
+                prefix="JP",
+                frequencies_hz=JAPAN_LOW_POWER_FREQUENCIES_HZ,
+                modulation=Modulation.NFM,
+                step=StepHundredthsKHz.NARROW_12_50,
+            )
+        ),
+        "Listen only: Japan 422 MHz low power",
+    ),
 )
 
 
@@ -551,8 +1013,12 @@ def add_record(
     spec: ChannelSpec,
 ) -> None:
     """Append one generated record from a channel spec."""
-    tone_part = f" {spec.tone.label}" if spec.tone.label else " OPN"
-    name = f"{spec.channel.label}{tone_part} {spec.power.suffix}"
+    tone_label = spec.tone.label or "OPN"
+    name = f"{spec.channel.label} {tone_label} {spec.power.suffix}"
+    if len(name) > MAX_CHIRP_NAME_LENGTH and spec.tone.mode is ToneMode.DTCS:
+        name = f"{spec.channel.label} {tone_label[1:]} {spec.power.suffix}"
+    if len(name) > MAX_CHIRP_NAME_LENGTH:
+        name = f"{spec.channel.label}{tone_label}{spec.power.suffix}"
     records.append(
         ChannelRecord(
             location=location,
@@ -566,26 +1032,94 @@ def add_record(
     )
 
 
+def add_dashboard_quick_access(records: list[ChannelRecord]) -> None:
+    """Add the special first ten high-utility memories."""
+    quick_specs = (
+        (DASHBOARD_SPECIAL_BASE, DASHBOARD_PMR_CHANNELS[0], OPEN_TONE, PMR_DEFAULTS, Power.LOW),
+        (
+            DASHBOARD_SPECIAL_BASE + 1,
+            DASHBOARD_PMR_CHANNELS[0],
+            TSQL_TONES[0],
+            PMR_DEFAULTS,
+            Power.LOW,
+        ),
+        (
+            DASHBOARD_SPECIAL_BASE + 2,
+            DASHBOARD_PMR_CHANNELS[0],
+            DTCS_TONES[0],
+            PMR_DEFAULTS,
+            Power.LOW,
+        ),
+        (
+            DASHBOARD_SPECIAL_BASE + 3,
+            DASHBOARD_PMR_CHANNELS[0],
+            OPEN_TONE,
+            PMR_DEFAULTS,
+            Power.HIGH,
+        ),
+        (
+            DASHBOARD_SPECIAL_BASE + 4,
+            DASHBOARD_PMR_CHANNELS[0],
+            TSQL_TONES[0],
+            PMR_DEFAULTS,
+            Power.HIGH,
+        ),
+        (
+            DASHBOARD_SPECIAL_BASE + 5,
+            DASHBOARD_PMR_CHANNELS[0],
+            DTCS_TONES[0],
+            PMR_DEFAULTS,
+            Power.HIGH,
+        ),
+        (DASHBOARD_SPECIAL_BASE + 6, DASHBOARD_PMR_CHANNELS[1], OPEN_TONE, PMR_DEFAULTS, Power.LOW),
+        (DASHBOARD_SPECIAL_BASE + 7, DASHBOARD_PMR_CHANNELS[2], OPEN_TONE, PMR_DEFAULTS, Power.LOW),
+        (
+            DASHBOARD_SPECIAL_BASE + 8,
+            DASHBOARD_UHF_CHANNELS[0],
+            OPEN_TONE,
+            HAM_DEFAULTS,
+            Power.HIGH,
+        ),
+        (
+            DASHBOARD_SPECIAL_BASE + 9,
+            DASHBOARD_VHF_CHANNELS[0],
+            OPEN_TONE,
+            HAM_DEFAULTS,
+            Power.HIGH,
+        ),
+    )
+    for location, channel, tone, defaults, power in quick_specs:
+        add_record(
+            records,
+            location,
+            ChannelSpec(
+                channel=channel,
+                tone=tone,
+                modulation=defaults.modulation,
+                step=defaults.step,
+                power=power,
+            ),
+        )
+
+
 def add_dashboard_matrix(
     records: list[ChannelRecord],
     base_location: int,
-    channels: Sequence[RadioChannel],
-    defaults: MatrixDefaults,
+    channels: Sequence[DashboardChannel],
 ) -> None:
     """Add paired low/high dashboard matrix records."""
-    high_power_offset = len(channels) * len(TONES_DASH)
-    for channel_index, channel in enumerate(channels):
-        for tone_index, tone in enumerate(TONES_DASH):
-            location = base_location + channel_index * len(TONES_DASH) + tone_index
-            for power, offset in ((Power.LOW, 0), (Power.HIGH, high_power_offset)):
+    for channel_index, dashboard_channel in enumerate(channels):
+        location = base_location + channel_index * DASHBOARD_BLOCK_STRIDE
+        for tone_index, tone in enumerate(DASHBOARD_TONES):
+            for power, offset in ((Power.LOW, 0), (Power.HIGH, DASHBOARD_POWER_OFFSET)):
                 add_record(
                     records,
-                    location + offset,
+                    location + tone_index + offset,
                     ChannelSpec(
-                        channel=channel,
+                        channel=dashboard_channel.channel,
                         tone=tone,
-                        modulation=defaults.modulation,
-                        step=defaults.step,
+                        modulation=dashboard_channel.defaults.modulation,
+                        step=dashboard_channel.defaults.step,
                         power=power,
                     ),
                 )
@@ -615,14 +1149,14 @@ def add_open_channels(
 
 def add_extended_pmr(
     records: list[ChannelRecord],
-    base_zone: int,
+    base_location: int,
     tones: Sequence[Tone],
     power: Power,
 ) -> None:
     """Add PMR tone blocks in 20-channel zone ranges."""
     for tone_index, tone in enumerate(tones):
         for channel_index, channel in enumerate(PMR_CHANNELS):
-            location = base_zone + tone_index * 20 + channel_index + 1
+            location = base_location + tone_index * 20 + channel_index
             add_record(
                 records,
                 location,
@@ -638,13 +1172,13 @@ def add_extended_pmr(
 
 def add_extended_ham(
     records: list[ChannelRecord],
-    base_zone: int,
+    base_location: int,
     tones: Sequence[Tone],
 ) -> None:
     """Add ham tone blocks while omitting calling channels."""
     for tone_index, tone in enumerate(tones):
         for channel_index, channel in enumerate(HAM_SAFE_CHANNELS):
-            location = base_zone + tone_index * 20 + channel_index + 1
+            location = base_location + tone_index * 20 + channel_index
             add_record(
                 records,
                 location,
@@ -680,79 +1214,156 @@ def add_open_ham_records(records: list[ChannelRecord]) -> None:
             )
 
 
+def add_listen_records(records: list[ChannelRecord]) -> None:
+    """Add receive-only listen memories."""
+    for block in LISTEN_BLOCKS:
+        for channel_index, channel in enumerate(block.channels):
+            records.append(
+                ChannelRecord(
+                    location=block.base_location + channel_index,
+                    name=channel.label,
+                    frequency=channel.frequency,
+                    tone=OPEN_TONE,
+                    modulation=channel.modulation,
+                    step=channel.step,
+                    power=Power.LOW,
+                    duplex=Duplex.RECEIVE_ONLY,
+                )
+            )
+
+
+def dashboard_section_markers() -> tuple[SectionMarker, ...]:
+    """Build comments for each active dashboard block."""
+    markers = [
+        SectionMarker(
+            DASHBOARD_SPECIAL_BASE,
+            "Quick primary PMR convoy controls",
+        ),
+        SectionMarker(
+            DASHBOARD_SPECIAL_BASE + 5,
+            "Quick backup open channels",
+        ),
+    ]
+    tone_names = "/".join(tone.label for tone in DASHBOARD_TONES)
+    for channel_index, dashboard_channel in enumerate(DASHBOARD_CHANNELS):
+        low_start = DASHBOARD_MATRIX_BASE + channel_index * DASHBOARD_BLOCK_STRIDE
+        high_start = low_start + DASHBOARD_POWER_OFFSET
+        for start, power in ((low_start, Power.LOW), (high_start, Power.HIGH)):
+            markers.append(
+                SectionMarker(
+                    start,
+                    (
+                        f"Dashboard {dashboard_channel.band_label} {dashboard_channel.channel.label} "
+                        f"{power.value.lower()}: {tone_names}"
+                    ),
+                )
+            )
+    return tuple(markers)
+
+
+def pmr_tone_section_markers(
+    base_location: int,
+    tones: Sequence[Tone],
+    power: Power,
+) -> tuple[SectionMarker, ...]:
+    """Build comments for PMR reserve tone blocks."""
+    markers: list[SectionMarker] = []
+    for tone_index, tone in enumerate(tones):
+        start = base_location + tone_index * 20
+        markers.append(
+            SectionMarker(
+                start,
+                (f"PMR {power.value.lower()} reserve {tone.mode.value} {tone.label}"),
+            )
+        )
+    return tuple(markers)
+
+
+def ham_tone_section_markers(
+    base_location: int,
+    tones: Sequence[Tone],
+) -> tuple[SectionMarker, ...]:
+    """Build comments for ham reserve tone blocks."""
+    markers: list[SectionMarker] = []
+    for tone_index, tone in enumerate(tones):
+        start = base_location + tone_index * 20
+        markers.append(
+            SectionMarker(
+                start,
+                (f"Ham high reserve {tone.mode.value} {tone.label}; calling channels omitted"),
+            )
+        )
+    return tuple(markers)
+
+
+def listen_section_markers() -> tuple[SectionMarker, ...]:
+    """Build comments for receive-only listen blocks."""
+    return tuple(SectionMarker(block.base_location, block.comment) for block in LISTEN_BLOCKS)
+
+
+SECTION_MARKERS: Final = (
+    *dashboard_section_markers(),
+    SectionMarker(OPEN_PMR_LOW_BASE, "Open PMR low"),
+    SectionMarker(OPEN_PMR_HIGH_BASE, "Open PMR high"),
+    SectionMarker(OPEN_UHF_BASE, "Open 70cm high; calling channel marked CQ"),
+    SectionMarker(OPEN_VHF_BASE, "Open 2m high; calling channel marked CQ"),
+    *pmr_tone_section_markers(PMR_TSQL_LOW_BASE, TSQL_TONES, Power.LOW),
+    *pmr_tone_section_markers(PMR_DTCS_LOW_BASE, DTCS_TONES, Power.LOW),
+    *pmr_tone_section_markers(PMR_TSQL_HIGH_BASE, TSQL_TONES, Power.HIGH),
+    *pmr_tone_section_markers(PMR_DTCS_HIGH_BASE, DTCS_TONES, Power.HIGH),
+    *ham_tone_section_markers(HAM_TSQL_HIGH_BASE, TSQL_TONES),
+    *ham_tone_section_markers(HAM_DTCS_HIGH_BASE, DTCS_TONES),
+    *listen_section_markers(),
+)
+
+
 def build_records() -> list[ChannelRecord]:
     """Build all radio memories before sorting and CSV serialization."""
     records: list[ChannelRecord] = []
 
+    add_dashboard_quick_access(records)
     add_dashboard_matrix(
         records,
-        1,
-        DASHBOARD_PMR_CHANNELS,
-        MatrixDefaults(
-            modulation=Modulation.NFM,
-            step=StepHundredthsKHz.PMR_6_25,
-        ),
-    )
-    add_dashboard_matrix(
-        records,
-        25,
-        DASHBOARD_UHF_CHANNELS[:3],
-        MatrixDefaults(
-            modulation=Modulation.FM,
-            step=StepHundredthsKHz.HAM_25_00,
-        ),
-    )
-    add_dashboard_matrix(
-        records,
-        49,
-        DASHBOARD_VHF_CHANNELS,
-        MatrixDefaults(
-            modulation=Modulation.FM,
-            step=StepHundredthsKHz.HAM_25_00,
-        ),
+        DASHBOARD_MATRIX_BASE,
+        DASHBOARD_CHANNELS,
     )
 
     add_open_channels(
         records,
-        75,
+        OPEN_PMR_LOW_BASE,
         PMR_CHANNELS,
-        MatrixDefaults(
-            modulation=Modulation.NFM,
-            step=StepHundredthsKHz.PMR_6_25,
-        ),
+        PMR_DEFAULTS,
         Power.LOW,
     )
     add_open_channels(
         records,
-        91,
-        DASHBOARD_UHF_CHANNELS,
-        MatrixDefaults(
-            modulation=Modulation.FM,
-            step=StepHundredthsKHz.HAM_25_00,
-        ),
+        OPEN_PMR_HIGH_BASE,
+        PMR_CHANNELS,
+        PMR_DEFAULTS,
         Power.HIGH,
     )
-    add_open_channels(
-        records,
-        96,
-        DASHBOARD_VHF_CHANNELS,
-        MatrixDefaults(
-            modulation=Modulation.FM,
-            step=StepHundredthsKHz.HAM_25_00,
-        ),
-        Power.HIGH,
-    )
-
-    add_extended_pmr(records, 100, CTCSS_TONES, Power.LOW)
-    add_extended_pmr(records, 200, DCS_TONES, Power.LOW)
-    add_extended_pmr(records, 300, CTCSS_TONES, Power.HIGH)
-    add_extended_pmr(records, 400, DCS_TONES, Power.HIGH)
     add_open_ham_records(records)
-    add_extended_ham(records, 600, CTCSS_TONES)
-    add_extended_ham(records, 700, DCS_TONES)
 
-    validate_records(records)
-    return sorted(records, key=lambda record: record.location)
+    add_extended_pmr(records, PMR_TSQL_LOW_BASE, TSQL_TONES, Power.LOW)
+    add_extended_pmr(records, PMR_DTCS_LOW_BASE, DTCS_TONES, Power.LOW)
+    add_extended_pmr(records, PMR_TSQL_HIGH_BASE, TSQL_TONES, Power.HIGH)
+    add_extended_pmr(records, PMR_DTCS_HIGH_BASE, DTCS_TONES, Power.HIGH)
+    add_extended_ham(records, HAM_TSQL_HIGH_BASE, TSQL_TONES)
+    add_extended_ham(records, HAM_DTCS_HIGH_BASE, DTCS_TONES)
+    add_listen_records(records)
+
+    annotated_records = add_section_comments(records)
+    validate_records(annotated_records)
+    return sorted(annotated_records, key=lambda record: record.location)
+
+
+def add_section_comments(records: Sequence[ChannelRecord]) -> list[ChannelRecord]:
+    """Add section comments to the first memory in each logical range."""
+    comments_by_location = {marker.location: marker.comment for marker in SECTION_MARKERS}
+    return [
+        replace(record, comment=comments_by_location.get(record.location, record.comment))
+        for record in records
+    ]
 
 
 def validate_records(records: Sequence[ChannelRecord]) -> None:
