@@ -55,7 +55,6 @@ CSV_HEADER: Final[tuple[str, ...]] = tuple(ChirpCsvRow.__annotations__)
 class Modulation(StrEnum):
     """CHIRP modulation modes used by the generated memories."""
 
-    AM = "AM"
     FM = "FM"
     NFM = "NFM"
 
@@ -409,6 +408,7 @@ class ListenBlock(NamedTuple):
     base_location: int
     channels: tuple[ListenChannel, ...]
     comment: str
+    row_comment: str
 
 
 class ListenRangeSpec(NamedTuple):
@@ -833,12 +833,13 @@ LISTEN_BLOCKS: Final = (
                 start_hz=136_000_000,
                 count=40,
                 step_hz=25_000,
-                modulation=Modulation.AM,
+                modulation=Modulation.FM,
                 step=StepHundredthsKHz.HAM_25_00,
                 width=3,
             )
         ),
-        "Listen only: upper civil airband AM",
+        "Listen only: upper civil airband",
+        "RX only; AM aviation service, stored as FM for this radio profile",
     ),
     ListenBlock(
         LISTEN_MIL_AIR_LOW_BASE,
@@ -848,12 +849,13 @@ LISTEN_BLOCKS: Final = (
                 start_hz=225_000_000,
                 count=50,
                 step_hz=250_000,
-                modulation=Modulation.AM,
+                modulation=Modulation.FM,
                 step=StepHundredthsKHz.HAM_25_00,
                 width=3,
             )
         ),
-        "Listen only: military air AM low",
+        "Listen only: military air low",
+        "RX only; AM military air service, stored as FM for this radio profile",
     ),
     ListenBlock(
         LISTEN_MIL_AIR_MID_BASE,
@@ -863,13 +865,14 @@ LISTEN_BLOCKS: Final = (
                 start_hz=237_500_000,
                 count=50,
                 step_hz=250_000,
-                modulation=Modulation.AM,
+                modulation=Modulation.FM,
                 step=StepHundredthsKHz.HAM_25_00,
                 first_channel=51,
                 width=3,
             )
         ),
-        "Listen only: military air AM mid",
+        "Listen only: military air mid",
+        "RX only; AM military air service, stored as FM for this radio profile",
     ),
     ListenBlock(
         LISTEN_MIL_AIR_HIGH_BASE,
@@ -879,13 +882,14 @@ LISTEN_BLOCKS: Final = (
                 start_hz=250_000_000,
                 count=41,
                 step_hz=250_000,
-                modulation=Modulation.AM,
+                modulation=Modulation.FM,
                 step=StepHundredthsKHz.HAM_25_00,
                 first_channel=101,
                 width=3,
             )
         ),
-        "Listen only: military air AM high",
+        "Listen only: military air high",
+        "RX only; AM military air service, stored as FM for this radio profile",
     ),
     ListenBlock(
         LISTEN_MARINE_BASE,
@@ -900,6 +904,7 @@ LISTEN_BLOCKS: Final = (
             )
         ),
         "Listen only: marine VHF ship-side",
+        "RX only; marine safety and working channels, do not transmit",
     ),
     ListenBlock(
         LISTEN_WEATHER_BASE,
@@ -912,6 +917,7 @@ LISTEN_BLOCKS: Final = (
             )
         ),
         "Listen only: North America weather",
+        "RX only; weather broadcast and alert-style channels",
     ),
     ListenBlock(
         LISTEN_SPACE_BASE,
@@ -924,6 +930,7 @@ LISTEN_BLOCKS: Final = (
             )
         ),
         "Listen only: space and satellite",
+        "RX only; satellite and ISS/APRS-style downlink candidates",
     ),
     ListenBlock(
         LISTEN_PMR_BASE,
@@ -937,6 +944,7 @@ LISTEN_BLOCKS: Final = (
             for index, frequency in enumerate(PmrFrequency, 1)
         ),
         "Listen only: UK/EU PMR446",
+        "RX only; licence-free PMR446 activity, useful for local monitoring",
     ),
     ListenBlock(
         LISTEN_LPD_BASE,
@@ -951,6 +959,7 @@ LISTEN_BLOCKS: Final = (
             )
         ),
         "Listen only: EU LPD433/SRD",
+        "RX only; short-range devices, sensors, low-power local chatter",
     ),
     ListenBlock(
         LISTEN_US_PERSONAL_BASE,
@@ -963,6 +972,7 @@ LISTEN_BLOCKS: Final = (
             )
         ),
         "Listen only: USA FRS/GMRS",
+        "RX only; North American personal radio channels",
     ),
     ListenBlock(
         LISTEN_US_BUSINESS_BASE,
@@ -975,6 +985,7 @@ LISTEN_BLOCKS: Final = (
             )
         ),
         "Listen only: USA MURS/business",
+        "RX only; US VHF MURS plus common business itinerant channels",
     ),
     ListenBlock(
         LISTEN_AU_CB_BASE,
@@ -990,6 +1001,7 @@ LISTEN_BLOCKS: Final = (
             )
         ),
         "Listen only: AU/NZ UHF CB",
+        "RX only; Australia/New Zealand UHF CB allocation",
     ),
     ListenBlock(
         LISTEN_JP_LOW_POWER_BASE,
@@ -1002,6 +1014,7 @@ LISTEN_BLOCKS: Final = (
             )
         ),
         "Listen only: Japan 422 MHz low power",
+        "RX only; Japan low-power 422 MHz handheld channels",
     ),
 )
 
@@ -1226,6 +1239,7 @@ def add_listen_records(records: list[ChannelRecord]) -> None:
                     modulation=channel.modulation,
                     step=channel.step,
                     power=Power.LOW,
+                    comment=block.row_comment,
                     duplex=Duplex.RECEIVE_ONLY,
                 )
             )
@@ -1359,10 +1373,17 @@ def build_records() -> list[ChannelRecord]:
 def add_section_comments(records: Sequence[ChannelRecord]) -> list[ChannelRecord]:
     """Add section comments to the first memory in each logical range."""
     comments_by_location = {marker.location: marker.comment for marker in SECTION_MARKERS}
-    return [
-        replace(record, comment=comments_by_location.get(record.location, record.comment))
-        for record in records
-    ]
+    annotated_records: list[ChannelRecord] = []
+    for record in records:
+        section_comment = comments_by_location.get(record.location)
+        if section_comment is None:
+            comment = record.comment
+        elif record.comment:
+            comment = f"{section_comment}; {record.comment}"
+        else:
+            comment = section_comment
+        annotated_records.append(replace(record, comment=comment))
+    return annotated_records
 
 
 def validate_records(records: Sequence[ChannelRecord]) -> None:
