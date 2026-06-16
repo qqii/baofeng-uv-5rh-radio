@@ -1,0 +1,37 @@
+[project]
+name = "baofeng-uv-5rh-radio"
+version = "0.1.0"
+requires-python = "==3.14"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    # dev tool
+    "lefthook==2.1.9",
+    # linting and formatting
+    "pyrefly==1.0.0",
+    "ruff==0.15.17",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # Rules managed by the formatter
+    "COM812",
+    "E501",
+    # Incompatible with existing rules
+    "D203",
+    "D212",
+]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.pyrefly]
+project-includes = ["generate.py"]
+python-version = "3.14"
+check-unannotated-defs = true
