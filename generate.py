@@ -489,9 +489,8 @@ class Tone:
 
     @property
     def ctone_freq(self) -> str:
-        """Return the CHIRP transmit tone frequency."""
-        tone = self.ctcss_tone
-        return format_tenths_hz(int(tone) if tone is not None else DEFAULT_CTCSS_TENTHS_HZ)
+        """Return the CHIRP transmit tone frequency (identical to the receive tone)."""
+        return self.rtone_freq
 
     @property
     def dtcs_code(self) -> str:
@@ -574,6 +573,16 @@ class MatrixDefaults:
     step: StepHundredthsKHz
 
 
+class ToneMatrixSpec(NamedTuple):
+    """Settings for one tone-zone matrix block (one fixed-width zone per tone)."""
+
+    base_location: int
+    tones: tuple[Tone, ...]
+    channels: tuple[RadioChannel, ...]
+    defaults: MatrixDefaults
+    power: Power
+
+
 def format_tenths_hz(tenths_hz: int) -> str:
     """Format a tone value stored as tenths of Hz."""
     whole, tenths = divmod(tenths_hz, TENTHS_PER_HZ)
@@ -597,15 +606,15 @@ def listen_channel(
 
 def listen_range(spec: ListenRangeSpec) -> tuple[ListenChannel, ...]:
     """Build a receive-only channel range using exact integer Hz spacing."""
-    return tuple(
-        listen_channel(
-            f"{spec.prefix}{channel_number:0{spec.width}d} RX",
-            spec.start_hz + index * spec.step_hz,
-            spec.modulation,
-            spec.step,
-        )
-        for index, channel_number in enumerate(
-            range(spec.first_channel, spec.first_channel + spec.count)
+    frequencies_hz = tuple(spec.start_hz + index * spec.step_hz for index in range(spec.count))
+    return listen_channels(
+        ListenListSpec(
+            prefix=spec.prefix,
+            frequencies_hz=frequencies_hz,
+            modulation=spec.modulation,
+            step=spec.step,
+            first_channel=spec.first_channel,
+            width=spec.width,
         )
     )
 
@@ -698,6 +707,7 @@ DASHBOARD_CHANNELS: Final = (
 )
 
 # Reserve section: 100s separate use/power; 20s separate tone choices.
+EXTENDED_ZONE_STRIDE: Final = 20
 PMR_TSQL_LOW_BASE: Final = 101
 PMR_DTCS_LOW_BASE: Final = 141
 PMR_TSQL_HIGH_BASE: Final = 201
@@ -1021,11 +1031,14 @@ def add_record(
 ) -> None:
     """Append one generated record from a channel spec."""
     tone_label = spec.tone.label or "OPN"
+    # DCS codes are identifiable by their digits, so the leading "D" can be dropped
+    # to reclaim a character when the full name would exceed CHIRP's limit.
+    short_tone = tone_label[1:] if spec.tone.mode is ToneMode.DTCS else tone_label
     name = f"{spec.channel.label} {tone_label}"
-    if len(name) > MAX_CHIRP_NAME_LENGTH and spec.tone.mode is ToneMode.DTCS:
-        name = f"{spec.channel.label} {tone_label[1:]}"
     if len(name) > MAX_CHIRP_NAME_LENGTH:
-        name = f"{spec.channel.label}{tone_label}"
+        name = f"{spec.channel.label} {short_tone}"
+    if len(name) > MAX_CHIRP_NAME_LENGTH:
+        name = f"{spec.channel.label}{short_tone}"
     records.append(
         ChannelRecord(
             location=location,
@@ -1042,75 +1055,21 @@ def add_record(
 def add_dashboard_quick_access(records: list[ChannelRecord]) -> None:
     """Add the special first ten high-utility memories."""
     quick_specs = (
-        (DASHBOARD_SPECIAL_BASE, DASHBOARD_PMR_CHANNELS[0], TSQL_TONES[0], PMR_DEFAULTS, Power.LOW),
-        (
-            DASHBOARD_SPECIAL_BASE + 1,
-            DASHBOARD_PMR_CHANNELS[0],
-            DTCS_TONES[0],
-            PMR_DEFAULTS,
-            Power.LOW,
-        ),
-        (
-            DASHBOARD_SPECIAL_BASE + 2,
-            DASHBOARD_PMR_CHANNELS[1],
-            TSQL_TONES[0],
-            PMR_DEFAULTS,
-            Power.LOW,
-        ),
-        (
-            DASHBOARD_SPECIAL_BASE + 3,
-            DASHBOARD_PMR_CHANNELS[2],
-            TSQL_TONES[0],
-            PMR_DEFAULTS,
-            Power.LOW,
-        ),
-        (
-            DASHBOARD_SPECIAL_BASE + 4,
-            DASHBOARD_UHF_CHANNELS[0],
-            TSQL_TONES[0],
-            HAM_DEFAULTS,
-            Power.LOW,
-        ),
-        (
-            DASHBOARD_SPECIAL_BASE + 5,
-            DASHBOARD_VHF_CHANNELS[0],
-            TSQL_TONES[0],
-            HAM_DEFAULTS,
-            Power.LOW,
-        ),
-        (
-            DASHBOARD_SPECIAL_BASE + 6,
-            DASHBOARD_PMR_CHANNELS[0],
-            OPEN_TONE,
-            PMR_DEFAULTS,
-            Power.LOW,
-        ),
-        (
-            DASHBOARD_SPECIAL_BASE + 7,
-            DASHBOARD_PMR_CHANNELS[0],
-            OPEN_TONE,
-            PMR_DEFAULTS,
-            Power.HIGH,
-        ),
-        (
-            DASHBOARD_SPECIAL_BASE + 8,
-            DASHBOARD_PMR_CHANNELS[0],
-            TSQL_TONES[0],
-            PMR_DEFAULTS,
-            Power.HIGH,
-        ),
-        (
-            DASHBOARD_SPECIAL_BASE + 9,
-            DASHBOARD_PMR_CHANNELS[0],
-            DTCS_TONES[0],
-            PMR_DEFAULTS,
-            Power.HIGH,
-        ),
+        (DASHBOARD_PMR_CHANNELS[0], TSQL_TONES[0], PMR_DEFAULTS, Power.LOW),
+        (DASHBOARD_PMR_CHANNELS[0], DTCS_TONES[0], PMR_DEFAULTS, Power.LOW),
+        (DASHBOARD_PMR_CHANNELS[1], TSQL_TONES[0], PMR_DEFAULTS, Power.LOW),
+        (DASHBOARD_PMR_CHANNELS[2], TSQL_TONES[0], PMR_DEFAULTS, Power.LOW),
+        (DASHBOARD_UHF_CHANNELS[0], TSQL_TONES[0], HAM_DEFAULTS, Power.LOW),
+        (DASHBOARD_VHF_CHANNELS[0], TSQL_TONES[0], HAM_DEFAULTS, Power.LOW),
+        (DASHBOARD_PMR_CHANNELS[0], OPEN_TONE, PMR_DEFAULTS, Power.LOW),
+        (DASHBOARD_PMR_CHANNELS[0], OPEN_TONE, PMR_DEFAULTS, Power.HIGH),
+        (DASHBOARD_PMR_CHANNELS[0], TSQL_TONES[0], PMR_DEFAULTS, Power.HIGH),
+        (DASHBOARD_PMR_CHANNELS[0], DTCS_TONES[0], PMR_DEFAULTS, Power.HIGH),
     )
-    for location, channel, tone, defaults, power in quick_specs:
+    for offset, (channel, tone, defaults, power) in enumerate(quick_specs):
         add_record(
             records,
-            location,
+            DASHBOARD_SPECIAL_BASE + offset,
             ChannelSpec(
                 channel=channel,
                 tone=tone,
@@ -1166,47 +1125,20 @@ def add_open_channels(
         )
 
 
-def add_extended_pmr(
-    records: list[ChannelRecord],
-    base_location: int,
-    tones: Sequence[Tone],
-    power: Power,
-) -> None:
-    """Add PMR tone blocks in 20-channel zone ranges."""
-    for tone_index, tone in enumerate(tones):
-        for channel_index, channel in enumerate(PMR_CHANNELS):
-            location = base_location + tone_index * 20 + channel_index
+def add_tone_matrix(records: list[ChannelRecord], spec: ToneMatrixSpec) -> None:
+    """Add tone blocks laid out as one fixed-width zone per tone."""
+    for tone_index, tone in enumerate(spec.tones):
+        for channel_index, channel in enumerate(spec.channels):
+            location = spec.base_location + tone_index * EXTENDED_ZONE_STRIDE + channel_index
             add_record(
                 records,
                 location,
                 ChannelSpec(
                     channel=channel,
                     tone=tone,
-                    modulation=Modulation.NFM,
-                    step=StepHundredthsKHz.PMR_6_25,
-                    power=power,
-                ),
-            )
-
-
-def add_extended_ham(
-    records: list[ChannelRecord],
-    base_location: int,
-    tones: Sequence[Tone],
-) -> None:
-    """Add ham tone blocks while omitting calling channels."""
-    for tone_index, tone in enumerate(tones):
-        for channel_index, channel in enumerate(HAM_SAFE_CHANNELS):
-            location = base_location + tone_index * 20 + channel_index
-            add_record(
-                records,
-                location,
-                ChannelSpec(
-                    channel=channel,
-                    tone=tone,
-                    modulation=Modulation.FM,
-                    step=StepHundredthsKHz.HAM_25_00,
-                    power=Power.HIGH,
+                    modulation=spec.defaults.modulation,
+                    step=spec.defaults.step,
+                    power=spec.power,
                 ),
             )
 
@@ -1289,7 +1221,7 @@ def pmr_tone_section_markers(
     """Build comments for PMR reserve tone blocks."""
     markers: list[SectionMarker] = []
     for tone_index, tone in enumerate(tones):
-        start = base_location + tone_index * 20
+        start = base_location + tone_index * EXTENDED_ZONE_STRIDE
         markers.append(
             SectionMarker(
                 start,
@@ -1306,7 +1238,7 @@ def ham_tone_section_markers(
     """Build comments for ham reserve tone blocks."""
     markers: list[SectionMarker] = []
     for tone_index, tone in enumerate(tones):
-        start = base_location + tone_index * 20
+        start = base_location + tone_index * EXTENDED_ZONE_STRIDE
         markers.append(
             SectionMarker(
                 start,
@@ -1368,12 +1300,30 @@ def build_records() -> list[ChannelRecord]:
     )
     add_open_ham_records(records)
 
-    add_extended_pmr(records, PMR_TSQL_LOW_BASE, TSQL_TONES, Power.LOW)
-    add_extended_pmr(records, PMR_DTCS_LOW_BASE, DTCS_TONES, Power.LOW)
-    add_extended_pmr(records, PMR_TSQL_HIGH_BASE, TSQL_TONES, Power.HIGH)
-    add_extended_pmr(records, PMR_DTCS_HIGH_BASE, DTCS_TONES, Power.HIGH)
-    add_extended_ham(records, HAM_TSQL_HIGH_BASE, TSQL_TONES)
-    add_extended_ham(records, HAM_DTCS_HIGH_BASE, DTCS_TONES)
+    add_tone_matrix(
+        records,
+        ToneMatrixSpec(PMR_TSQL_LOW_BASE, TSQL_TONES, PMR_CHANNELS, PMR_DEFAULTS, Power.LOW),
+    )
+    add_tone_matrix(
+        records,
+        ToneMatrixSpec(PMR_DTCS_LOW_BASE, DTCS_TONES, PMR_CHANNELS, PMR_DEFAULTS, Power.LOW),
+    )
+    add_tone_matrix(
+        records,
+        ToneMatrixSpec(PMR_TSQL_HIGH_BASE, TSQL_TONES, PMR_CHANNELS, PMR_DEFAULTS, Power.HIGH),
+    )
+    add_tone_matrix(
+        records,
+        ToneMatrixSpec(PMR_DTCS_HIGH_BASE, DTCS_TONES, PMR_CHANNELS, PMR_DEFAULTS, Power.HIGH),
+    )
+    add_tone_matrix(
+        records,
+        ToneMatrixSpec(HAM_TSQL_HIGH_BASE, TSQL_TONES, HAM_SAFE_CHANNELS, HAM_DEFAULTS, Power.HIGH),
+    )
+    add_tone_matrix(
+        records,
+        ToneMatrixSpec(HAM_DTCS_HIGH_BASE, DTCS_TONES, HAM_SAFE_CHANNELS, HAM_DEFAULTS, Power.HIGH),
+    )
     add_listen_records(records)
 
     annotated_records = add_section_comments(records)
