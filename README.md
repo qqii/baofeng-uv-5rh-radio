@@ -1,88 +1,101 @@
-# Baofeng UV-5RH Radio
+# Baofeng UV-5RH Memory Map
 
-This project generates a CHIRP-compatible memory CSV for programming a Baofeng UV-5RH. It is built around a simple baseline path using committed CHIRP images, plus a tweaking path where `generate.py` is edited and regenerated.
+A structured [CHIRP](https://chirpmyradio.com/) memory map for the Baofeng UV-5RH:
+a transmit "dashboard" of convoy, ham, and PMR channels plus a large
+listen-only bank. It ships as a ready-to-load CHIRP image and is generated from a
+single script, [`generate.py`](generate.py), so the whole layout is reproducible
+and easy to tweak.
 
-The generated CSV is written to `res/Baofeng_UV5RH_Master.csv`.
+> **Transmit only where you are licensed and authorised.** The `500+` bank is
+> receive-only by design — airband, marine, weather, and satellite are listen-only.
 
 ## Prerequisites
 
-- Baofeng UV-5RH radio.
-- USB programming cable with the correct serial driver installed.
-- Windows for the vendor CPS tool.
-- `uv` for running the Python generator.
-- CHIRP for backing up and programming the radio.
-- Local vendor files in `res/`:
-  - `5RM Change Frequency Range.pdf`
-  - `T6UV Series EN CPS+.exe`
+These instructions assume you already have:
 
-## Radio Preparation
+- A **Baofeng UV-5RH** and a USB programming cable with its
+  [serial driver](https://www.baofengradio.com/pages/download) installed.
+- **[CHIRP](https://chirpmyradio.com/)** — see the
+  [Beginners Guide](https://chirpmyradio.com/projects/chirp/wiki/Beginners_Guide)
+  to install and connect.
+- A **one-time frequency-range unlock** applied with the vendor CPS tool, so the
+  radio accepts the full transmit/receive ranges used here. Follow
+  [`docs/5rm-change-frequency-range.md`](docs/5rm-change-frequency-range.md) and
+  select the factory full range (`UHF 400-520 / VHF 136-174 / VHF2 200-260 MHz`).
+- **[uv](https://docs.astral.sh/uv/)** — only needed to
+  [customise the map](#2-customise-the-memory-map).
 
-1. Install and open `res/T6UV Series EN CPS+.exe`.
-2. Follow the extracted vendor instructions in `docs/5rm-change-frequency-range.md`.
-3. In the CPS frequency-range tool, select the factory/full-range option:
+## 1. Load the memory map
 
-   `UHF: 400-520MHz, VHF: 136-174MHz, VHF2: 200-260MHz`
+### What's inside
 
-4. Write the range change to the radio.
-5. Install CHIRP.
-6. In CHIRP, read from the radio and save a backup before changing memories.
+Memories follow [CHIRP's generic CSV schema](https://chirpmyradio.com/projects/chirp/wiki/CSV_HowTo)
+and are laid out in fixed location ranges. Transmit memories use simplex; the
+500+ bank is receive-only.
 
-## Simple Programming
+**Transmit**
 
-Use the committed CHIRP images when you want the known baseline without editing the generator:
+| Locations | Block | Contents |
+| --- | --- | --- |
+| `001-010` | Dashboard quick access | Highest-use convoy/fallback channels: PMR + 2m/70cm, toned and open, low/high. |
+| `011-100` | Dashboard matrix | Nine channels (3 PMR, 3×70cm, 3×2m), each with 5 tone variants at low power and a high-power duplicate 45 slots higher. |
+| `101-276` | PMR446 reserve | 16 PMR channels per tone, in 20-wide blocks: TSQL low `101`, DTCS low `141`, TSQL high `201`, DTCS high `241`. |
+| `301-379` | Ham reserve | 2m/70cm tone fallbacks (TSQL high `301`, DTCS high `341`); calling channels excluded. |
+| `401-463` | Open squelch | PMR low `401`, PMR high `421`, 70cm `441`, 2m `451`; calling channels marked `CQ`. |
 
-- `res/Baofeng_UV-5RH_stock.img`: stock backup image.
-- `res/Baofeng_UV-5RH_master.img`: programmed master image.
+**Listen-only** (`Duplex = off`, receive-only)
 
-Recommended flow:
+| Locations | Service |
+| --- | --- |
+| `500` | Civil airband (AM stored as FM) |
+| `550` / `600` / `650` | Military air, low / mid / high |
+| `700` | Marine VHF |
+| `730` | NOAA weather |
+| `750` | Satellite / ISS / APRS downlinks |
+| `770` | PMR446 |
+| `790` | EU LPD433 / SRD |
+| `860` / `890` | US FRS-GMRS / business |
+| `900` | Australia UHF CB |
+| `980` | Japan low-power |
 
-1. Open CHIRP.
-2. Read from the radio and save your own fresh backup.
-3. Open `res/Baofeng_UV-5RH_master.img`.
-4. Review the memories and settings.
-5. Write the image to the radio.
+**Conventions**
 
-After writing, check the radio settings in CHIRP:
+- **Names** are `LABEL TONE`, e.g. `P07 C05`; `OPN` = open squelch, `CQ` = calling
+  channel, `… RX` = listen-only. CHIRP caps names at 10 characters.
+- **Tones**: CTCSS (`TSQL`) and DCS (`DTCS`). **Power**: Low `2.0W` / High `10W`.
+  **Mode**: `FM` / `NFM`. **Step**: `6.25` (PMR) / `12.5` (narrow) / `25` kHz (ham).
+- **Comments** are CHIRP-only section labels; the radio itself shows only names.
 
-- `Channel A display type`: `Name`
-- `Channel B display type`: `Name`
-- `Channel A work mode`: `Channel`
-- `Channel B work mode`: `Channel`
+### Program the radio
 
-The radio does not store CHIRP comments. Use the memory names and the radio's own indicators for on-device context.
+The committed image already contains the full map — no Python required.
 
-## Tweaking The Memory Map
+1. Open CHIRP, then **Radio → Download From Radio** and save a backup of your
+   current radio.
+2. **File → Open** [`res/Baofeng_UV-5RH_master.img`](res/Baofeng_UV-5RH_master.img)
+   and review the memories.
+3. **Radio → Upload To Radio**.
+4. Confirm these radio settings in CHIRP:
+   - `Channel A/B display type`: `Name`
+   - `Channel A/B work mode`: `Channel`
 
-Use this path when changing frequencies, tones, names, comments, or layout:
+The factory backup [`res/Baofeng_UV-5RH_stock.img`](res/Baofeng_UV-5RH_stock.img)
+is also committed if you need to return to stock.
 
-1. Edit `generate.py`.
-2. Generate the CHIRP CSV:
+## 2. Customise the memory map
 
-   ```powershell
+Change frequencies, tones, names, or layout by editing the generator and
+re-importing.
+
+1. Edit [`generate.py`](generate.py) — frequencies, tone sets, power, and the
+   per-block base locations are defined as typed constants near the top.
+2. Generate the CSV:
+
+   ```shell
    uv run python generate.py
    ```
 
-3. In CHIRP, open your radio image or a fresh backup.
-4. Import `res/Baofeng_UV5RH_Master.csv`.
-5. Review the import warnings and memory layout.
-6. Confirm the settings:
-
-   - `Channel A display type`: `Name`
-   - `Channel B display type`: `Name`
-   - `Channel A work mode`: `Channel`
-   - `Channel B work mode`: `Channel`
-
-7. Save a new `.img` and write it to the radio.
-
-## Checks
-
-Run the local quality checks before committing generator changes:
-
-```powershell
-ruff format generate.py
-ruff check generate.py
-pyrefly check
-lefthook run pre-commit --force --colors off
-```
-
-`res/` is ignored by default because it contains generated files and local vendor assets. The two baseline CHIRP images are intentionally committed.
+   This writes `res/Baofeng_UV5RH_master.csv`.
+3. In CHIRP, open your radio image or a fresh backup, then **File → Import** the
+   CSV and review the import warnings.
+4. Confirm the settings above and **Upload To Radio**.
