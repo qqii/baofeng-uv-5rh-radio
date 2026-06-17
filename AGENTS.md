@@ -1,13 +1,14 @@
 # AGENTS.md
 
-Guidance for AI coding agents working in this repository. Human-facing docs live
-in `README.md` and `docs/`; this file is the agent-oriented companion.
+Guidance for AI coding agents working in this repository. Codex CLI reads this
+file directly; Claude Code reads it through the `CLAUDE.md` symlink. Human-facing
+docs live in `README.md` and `docs/`; this is the agent-oriented companion.
 
 ## Project overview
 
 This project generates a CHIRP-compatible memory CSV for programming a Baofeng
 UV-5RH handheld radio. Almost all logic lives in a single script, `generate.py`,
-which writes `res/Baofeng_UV5RH_Master.csv`. There is no application runtime or
+which writes `res/Baofeng_UV5RH_master.csv`. There is no application runtime or
 test suite — the "build" is running the generator, and quality is enforced by
 linting and type checking.
 
@@ -17,14 +18,14 @@ linting and type checking.
 - Dependency and environment management is via [`uv`](https://docs.astral.sh/uv/).
 - Install the toolchain (creates `.venv` from `uv.lock`):
 
-  ```powershell
+  ```shell
   uv sync
   ```
 
 ## Common commands
 
-Run from the repo root. Commands are shown in PowerShell form (this is a Windows
-project), but work the same under any shell.
+Run from the repo root. This is a Windows-primary project, but every command
+below is shell-agnostic.
 
 | Task | Command |
 | --- | --- |
@@ -34,8 +35,8 @@ project), but work the same under any shell.
 | Type check | `pyrefly check` |
 | Pre-commit hooks | `lefthook run pre-commit --force --colors off` |
 
-Run the format, lint, type-check, and pre-commit commands before committing any
-change to `generate.py`.
+After any change to `generate.py`, regenerate the CSV and run the format, lint,
+type-check, and pre-commit commands before committing.
 
 ## Code style and conventions
 
@@ -63,5 +64,14 @@ change to `generate.py`.
 
 - History follows **Conventional Commits** (`feat:`, `fix:`, `refactor:`,
   `chore:`, `docs:`). Match that style.
+- **AI-authored commits must always include a `Co-Authored-By:` trailer** that
+  identifies the agent, e.g.:
+
+  ```
+  Co-Authored-By: Codex <codex@openai.com>
+  ```
+
+  Use the trailer matching the agent that made the commit (for Claude Code:
+  `Co-Authored-By: Claude <noreply@anthropic.com>`).
 - Keep changes to `res/` out of commits unless the request is specifically about
   the committed baseline images.
