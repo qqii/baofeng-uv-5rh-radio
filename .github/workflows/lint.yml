@@ -1,0 +1,61 @@
+name: Lint
+
+on:
+  pull_request:
+    branches:
+      - master
+  workflow_call:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: lint-${{ github.ref }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddf3e0 # v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: true
+          activate-environment: true
+          cache-python: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run pre-commit checks
+        run: uv run lefthook run pre-commit --all-files --force --no-auto-install --no-tty
+
+      - name: Run ruff format check
+        run: uv run ruff format --check generate.py
+
+      - name: Run ruff lint
+        run: uv run ruff check generate.py
+
+      - name: Run pyrefly
+        run: uv run pyrefly check
+
+      - name: Verify no files were modified
+        run: git diff --exit-code
+
+      - name: Run semgrep
+        env:
+          SEMGREP_RULES: auto
+        run: >-
+          uvx semgrep ci
+          --exclude-rule=bash.lang.security.ifs-tampering.ifs-tampering
+          --sarif-output=semgrep.sarif
+
+      - name: Upload semgrep SARIF
+        if: success() || failure()
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep

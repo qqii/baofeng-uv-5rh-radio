@@ -1,0 +1,20 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+
+    ":configMigration",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":semanticCommitTypeChore",
+    ":timezone(Europe/London)"
+  ],
+  "baseBranchPatterns": ["master"],
+  "labels": ["dependencies"],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "minimumReleaseAge": "3 days",
+  "automerge": true,
+  "automergeStrategy": "rebase"
+}
