@@ -6,7 +6,7 @@
     ":configMigration",
     ":dependencyDashboard",
     ":semanticCommits",
-    ":semanticCommitTypeChore",
+    ":semanticCommitTypeAll(chore)",
     ":timezone(Europe/London)"
   ],
   "baseBranchPatterns": ["master"],
