@@ -10,7 +10,7 @@ dev = [
     "lefthook==2.1.9",
     # linting and formatting
     "pyrefly==1.0.0",
-    "ruff==0.15.17",
+    "ruff==0.15.18",
 ]
 
 [tool.ruff]
