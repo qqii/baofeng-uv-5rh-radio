@@ -49,7 +49,7 @@ jobs:
         env:
           SEMGREP_RULES: auto
         run: >-
-          uvx semgrep ci
+          uv run semgrep ci
           --exclude-rule=bash.lang.security.ifs-tampering.ifs-tampering
           --sarif-output=semgrep.sarif
 
