@@ -72,17 +72,16 @@ The release image already contains the full map - no Python required.
 
 1. Open CHIRP, then **Radio -> Download From Radio** and save a backup of your
    current radio.
-2. Download
-   [`Baofeng_UV-5RH_master.img`](https://github.com/qqii/baofeng-uv-5rh-radio/releases/download/v0.1.0/Baofeng_UV-5RH_master.img)
-   from release `v0.1.0`.
-3. **File -> Open** the downloaded image and review the memories.
-4. **Radio -> Upload To Radio**.
-5. Confirm these radio settings in CHIRP:
+2. Download and extract
+   [`Baofeng_UV-5RH_master.img`](https://github.com/qqii/baofeng-uv-5rh-radio/releases/download/v0.1.0/Baofeng_UV-5RH_master.zip).
+1. **File -> Open** the downloaded image and review the memories.
+2. **Radio -> Upload To Radio**.
+3. Confirm these radio settings in CHIRP:
    - `Channel A/B display type`: `Name`
    - `Channel A/B work mode`: `Channel`
 
 The factory backup
-[`Baofeng_UV-5RH_stock.img`](https://github.com/qqii/baofeng-uv-5rh-radio/releases/download/v0.0.1/Baofeng_UV-5RH_stock.img)
+[`Baofeng_UV-5RH_stock.img`](https://github.com/qqii/baofeng-uv-5rh-radio/releases/download/v0.0.1/Baofeng_UV-5RH_stock.zip)
 is published on release `v0.0.1` if you need to return to stock.
 
 ## 2. Customise the memory map
