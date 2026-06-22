@@ -9,7 +9,7 @@ dev = [
     # dev tool
     "lefthook==2.1.9",
     # linting and formatting
-    "pyrefly==1.0.0",
+    "pyrefly==1.1.1",
     "ruff==0.15.18",
     "semgrep>=1.161.0",
 ]
