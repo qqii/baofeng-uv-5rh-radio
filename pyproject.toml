@@ -7,7 +7,7 @@ dependencies = []
 [dependency-groups]
 dev = [
     # dev tool
-    "lefthook==2.1.10",
+    "lefthook==2.1.11",
     # linting and formatting
     "pyrefly==1.2.0",
     "ruff==0.15.22",
