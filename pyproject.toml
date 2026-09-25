@@ -10,7 +10,7 @@ dev = [
     "lefthook==2.1.14",
     # linting and formatting
     "pyrefly==1.3.1",
-    "ruff==0.15.22",
+    "ruff==0.16.8",
     "semgrep>=1.161.0",
 ]
 
